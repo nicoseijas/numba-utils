@@ -56,4 +56,7 @@ documentation ([performance](performance.md), [cache](numba-cache.md),
 ---
 
 Enforcement lives in [GUIDELINES.md](../GUIDELINES.md) — these
-principles are why those rules exist.
+principles are why those rules exist. Individual trade-offs are
+recorded in [design/](design/README.md), and the testing counterpart of
+Benchmark Honesty — why no line-coverage badge exists — in
+[testing.md](testing.md).

@@ -117,7 +117,9 @@ The claims above are backed in-repo: reproducible
 [benchmarks/](benchmarks) (fixed seeds, published environment), 200+
 tests where every kernel is validated against an independent reference
 (NumPy, heapq, set — nopython code fails *silently* out of bounds, so
-reference validation is the only trustworthy coverage), runnable
+reference validation is the only trustworthy coverage; the full
+strategy, including why a line-coverage badge is intentionally absent,
+is in [docs/testing.md](docs/testing.md)), runnable
 [examples/](examples), technical [docs/](docs), and CI running all of it.
 
 ## Used in
@@ -161,5 +163,6 @@ python -m venv .venv
 ```
 
 Contributions follow [GUIDELINES.md](GUIDELINES.md) — benchmarks are
-mandatory, honesty is policy. Project docs: [VISION.md](VISION.md),
+mandatory, honesty is policy. Why things are built the way they are:
+[docs/design/](docs/design). Project docs: [VISION.md](VISION.md),
 [ROADMAP.md](ROADMAP.md), [docs/](docs).
