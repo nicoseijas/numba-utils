@@ -1,13 +1,12 @@
 # numba-utils
 
 **Battle-tested building blocks for production
-[Numba](https://numba.pydata.org/) workloads.** Built for engineers
-pushing Numba to its limits.
+[Numba](https://numba.pydata.org/) workloads.** Built for production
+numerical software with Numba.
 
-✓ Battle-tested &nbsp;·&nbsp; ✓ Zero dependencies beyond NumPy + Numba
-&nbsp;·&nbsp; ✓ Callable inside `@njit` &nbsp;·&nbsp; ✓ Honest
-benchmarks &nbsp;·&nbsp; ✓ Diagnostics &nbsp;·&nbsp; ✓ CI &nbsp;·&nbsp;
-✓ MIT
+✓ Zero dependencies beyond NumPy + Numba &nbsp;·&nbsp; ✓ Callable inside
+`@njit` &nbsp;·&nbsp; ✓ Honest benchmarks &nbsp;·&nbsp; ✓ Diagnostics
+&nbsp;·&nbsp; ✓ CI &nbsp;·&nbsp; ✓ MIT
 
 ```
                     Numba
@@ -21,9 +20,12 @@ benchmarks &nbsp;·&nbsp; ✓ Diagnostics &nbsp;·&nbsp; ✓ CI &nbsp;·&nbsp;
 ```
 
 ```python
+from numba import njit
 from numba_utils import topk
 
-top10 = topk(values, 10)     # O(n), no full sort, works inside @njit
+@njit
+def winners(scores):
+    return topk(scores, 10)     # O(n), no full sort — runs in nopython mode
 ```
 
 ```python
@@ -50,12 +52,9 @@ code:
 ```python
 >>> from numba_utils import diagnostics
 >>> diagnostics.check(fn)
-1. cache=True: on-disk cached binaries can crash intermittently when
-   loaded by a process other than the one that compiled them
-   (multi-process worker farms, network filesystems, ...).
-   Recommendation: NUMBA_UTILS_CACHE=0 or configure(cache=False).
-2. fastmath=True: relaxes IEEE 754 — don't use where exact float
-   semantics or reproducibility matter.
+⚠ cache=True may crash when loaded across processes (farms, network FS)
+  → NUMBA_UTILS_CACHE=0  or  configure(cache=False)
+⚠ fastmath=True relaxes IEEE 754 — not for exact/reproducible results
 ```
 
 ## Why this exists
@@ -71,6 +70,18 @@ that usually stays trapped inside numerical projects — as kernels with
 the pitfalls engineered around, as diagnostics, and as
 [documentation](docs). It does not compete with Numba: it builds on top
 of it.
+
+## Why not...
+
+- **heapq / `collections`?** They can't be called from nopython mode.
+  The containers here are jitclasses usable inside `@njit`.
+- **NumPy?** Many helpers are built to run *inside* compiled kernels,
+  where NumPy calls can't reach. Where NumPy is faster (bandwidth-bound
+  sweeps, its SIMD sort), [BENCHMARKS.md](BENCHMARKS.md) says so.
+- **SciPy?** A heavy dependency that isn't njit-callable; this stays at
+  NumPy + Numba and works in the compiled path.
+- **Numba itself?** Numba is a compiler. numba-utils is a standard
+  library on top of it.
 
 ## Design principles
 
