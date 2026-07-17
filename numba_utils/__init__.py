@@ -56,6 +56,7 @@ from numba_utils.profiling import (
     TimingStats,
     benchmark,
     compare,
+    compile_stats,
     compile_time,
     warmup,
 )
@@ -95,6 +96,7 @@ __all__ = [
     "cached_njit",
     "choice",
     "compare",
+    "compile_stats",
     "compile_time",
     "config",
     "configure",

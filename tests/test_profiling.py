@@ -7,8 +7,10 @@ from numba import njit
 from numba_utils.profiling import (
     BenchmarkResult,
     ComparisonResult,
+    TimingStats,
     benchmark,
     compare,
+    compile_stats,
     compile_time,
     warmup,
 )
@@ -35,6 +37,49 @@ class TestBenchmark:
     def test_str_format(self):
         r = BenchmarkResult(label="x", elapsed=0.001)
         assert "x" in str(r) and "ms" in str(r)
+
+
+class TestBenchmarkFunctionMode:
+    def test_returns_stats_with_n_runs(self):
+        stats = benchmark(sorted, args=([3, 1, 2],), n=7, verbose=False)
+        assert isinstance(stats, TimingStats)
+        assert stats.runs == 7
+        assert stats.mean > 0
+
+    def test_warmup_excludes_compilation_by_default(self):
+        @njit
+        def fresh(x):
+            return x * 2.0
+
+        stats = benchmark(fresh, args=(1.0,), n=5, verbose=False)
+        assert stats.mean < 0.005
+
+    def test_verbose_prints_summary(self, capsys):
+        benchmark(sorted, args=([1],), n=2)
+        out = capsys.readouterr().out
+        assert "sorted" in out and "mean" in out
+
+    def test_invalid_params_raise(self):
+        with pytest.raises(ValueError):
+            benchmark(sorted, args=([1],), n=0)
+        with pytest.raises(ValueError):
+            benchmark(sorted, args=([1],), warmup_runs=-1)
+
+
+class TestCompileStats:
+    def test_reports_signatures_and_flags(self):
+        @njit
+        def doubled(x):
+            return x * 2.0
+
+        doubled(1.0)
+        report = compile_stats(doubled)
+        assert len(report.signatures) == 1
+        assert report.parallel is False
+
+    def test_non_dispatcher_raises(self):
+        with pytest.raises(TypeError):
+            compile_stats(sorted)
 
 
 class TestWarmup:

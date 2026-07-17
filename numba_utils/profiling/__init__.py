@@ -4,6 +4,7 @@ from numba_utils.profiling._compare import ComparisonResult, TimingStats, compar
 from numba_utils.profiling._timer import (
     BenchmarkResult,
     benchmark,
+    compile_stats,
     compile_time,
     warmup,
 )
@@ -14,6 +15,7 @@ __all__ = [
     "TimingStats",
     "benchmark",
     "compare",
+    "compile_stats",
     "compile_time",
     "warmup",
 ]
