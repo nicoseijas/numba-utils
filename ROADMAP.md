@@ -10,6 +10,11 @@
 
 **Goal:** build a solid base.
 
+**Status:** `decorators/`, `profiling/`, `arrays/` and `algorithms/` implemented
+and benchmarked (see BENCHMARKS.md). Still pending from the lists below:
+`argpartition_topk` (covered by `algorithms.topk`/`fast_argpartition`),
+`stable_argsort` and `lexsort`. Next up: `random/` and `collections/`.
+
 ```
 numba_utils/
     decorators/
