@@ -73,4 +73,6 @@ nav:
       - RNG: design/rng.md
       - Benchmarking: design/benchmarking.md
   - Testing: testing.md
+  - Articles:
+      - Why most Numba benchmarks are wrong: articles/why-most-numba-benchmarks-are-wrong.md
   - Contributing: contributing.md
