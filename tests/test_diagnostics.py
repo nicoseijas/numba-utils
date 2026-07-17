@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from numba import njit
 
-from numba_utils import diagnostics, njit_fast, parallel
+from numba_utils import diagnostics, njit_fast, njit_parallel
 
 
 def _make_compiled():
@@ -72,7 +72,7 @@ class TestCheck:
         assert any("fastmath" in w for w in warnings)
 
     def test_parallel_warning(self):
-        @parallel
+        @njit_parallel
         def pfn(arr):
             return arr.sum()
 

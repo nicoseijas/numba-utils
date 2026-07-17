@@ -69,10 +69,16 @@ def njit_fast(
     )
 
 
-def parallel(
+def njit_parallel(
     func: Callable[..., Any] | None = None, /, **overrides: Any
 ) -> Callable[..., Any]:
-    """Clean alias for ``njit(parallel=True, cache=True)``."""
+    """Clean alias for ``njit(parallel=True, cache=True)``.
+
+    Before reaching for this, read docs/parallelism.md: fine-grained
+    ``prange`` regions lose to serial code. For complete parallel
+    operations with the pitfalls already engineered around, see
+    ``numba_utils.parallel``.
+    """
     return _apply_njit(func, {"parallel": True, "cache": True}, overrides)
 
 

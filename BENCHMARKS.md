@@ -6,25 +6,36 @@ Seed 42, 11 runs after 2 warmup runs, mean times.
 
 | case | NumPy | numba-utils | speedup |
 | --- | ---: | ---: | ---: |
-| fast_clip (2,000,000 f64) | 2.22 ms | 2.21 ms | 1.01x |
-| cumulative_sum (2,000,000 f64) | 5.83 ms | 2.54 ms | 2.30x |
-| rolling_mean w=50 (2,000,000 f64) | 13.34 ms | 3.86 ms | 3.45x |
-| topk k=100 (2,000,000 f64) | 5.44 ms | 0.70 ms | 7.82x |
-| histogram 64 bins (2,000,000 f64) | 10.66 ms | 1.43 ms | 7.48x |
-| radix_sort full-range (5,000,000 i64) | 50.45 ms | 59.55 ms | 0.85x |
-| radix_sort range<2^24 (5,000,000 i64) | 51.82 ms | 41.24 ms | 1.26x |
-| counting_sort range<1000 (5,000,000 i64) | 25.75 ms | 10.17 ms | 2.53x |
-| unique_sorted (5,000,000 i64, sorted) | 28.33 ms | 1.65 ms | 17.21x |
+| fast_clip (2,000,000 f64) | 2.22 ms | 2.24 ms | 0.99x |
+| cumulative_sum (2,000,000 f64) | 5.82 ms | 2.57 ms | 2.27x |
+| rolling_mean w=50 (2,000,000 f64) | 12.65 ms | 3.02 ms | 4.20x |
+| topk k=100 (2,000,000 f64) | 5.83 ms | 0.69 ms | 8.45x |
+| histogram 64 bins (2,000,000 f64) | 9.71 ms | 1.42 ms | 6.84x |
+| radix_sort full-range (5,000,000 i64) | 50.56 ms | 61.24 ms | 0.83x |
+| radix_sort range<2^24 (5,000,000 i64) | 52.19 ms | 40.17 ms | 1.30x |
+| counting_sort range<1000 (5,000,000 i64) | 27.05 ms | 13.87 ms | 1.95x |
+| unique_sorted (5,000,000 i64, sorted) | 27.75 ms | 1.63 ms | 16.99x |
 
 ## Random & collections
 
 | case | baseline | numba-utils | speedup |
 | --- | ---: | ---: | ---: |
-| shuffle (1,000,000 f64) (vs NumPy) | 12.59 ms | 8.46 ms | 1.49x |
-| weighted_sampling (10,000 w, 100,000 draws) (vs NumPy) | 6.50 ms | 5.90 ms | 1.10x |
-| alias_sample (setup amortized, 100,000 draws) (vs NumPy) | 6.67 ms | 2.54 ms | 2.63x |
-| counter (1,000,000 i64, 1k distinct) (vs NumPy) | 5.95 ms | 22.86 ms | 0.26x |
-| PriorityQueue push+pop (50,000) (vs heapq) | 21.18 ms | 4.61 ms | 4.60x |
-| SparseSet churn (200,000 ops) (vs Python set) | 15.56 ms | 5.10 ms | 3.05x |
+| shuffle (1,000,000 f64) (vs NumPy) | 13.11 ms | 8.50 ms | 1.54x |
+| weighted_sampling (10,000 w, 100,000 draws) (vs NumPy) | 6.57 ms | 5.91 ms | 1.11x |
+| alias_sample (setup amortized, 100,000 draws) (vs NumPy) | 6.48 ms | 3.31 ms | 1.96x |
+| counter (1,000,000 i64, 1k distinct) (vs NumPy) | 5.72 ms | 24.25 ms | 0.24x |
+| PriorityQueue push+pop (50,000) (vs heapq) | 17.02 ms | 4.39 ms | 3.88x |
+| SparseSet churn (200,000 ops) (vs Python set) | 15.46 ms | 5.09 ms | 3.04x |
 
 `counter` loses to sort-based `np.unique` on one-shot counting by design: its use case is incremental counting inside jitted loops, where materializing an array first is the expensive part.
+
+## Parallel (24 threads)
+
+| case | serial baseline | parallel | speedup |
+| --- | ---: | ---: | ---: |
+| parallel_sum (20,000,000 f64) vs np.sum | 14.82 ms | 2.46 ms | 6.02x |
+| parallel_histogram 64 bins (20,000,000 f64) vs serial histogram | 18.43 ms | 3.25 ms | 5.68x |
+| parallel_prefix_sum (20,000,000 f64) vs serial cumulative_sum | 28.04 ms | 20.42 ms | 1.37x |
+| parallel_topk k=100 (20,000,000 f64) vs serial topk | 11.58 ms | 2.50 ms | 4.63x |
+
+Parallel float reductions reorder operations; results can differ from serial in the last bits (parallel_histogram is bit-exact). Gains depend on core count and memory bandwidth.

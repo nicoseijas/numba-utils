@@ -60,3 +60,13 @@ the difference for reductions rather than assume it.
 
 `diagnostics.check(fn)` flags `parallel=True` functions with a summary
 of these caveats.
+
+## The `numba_utils.parallel` module
+
+These rules are embodied as complete operations, not prange wrappers:
+`parallel_sum`, `parallel_reduce` (per-index kernel decorator),
+`parallel_histogram` (per-thread private rows, cache-line padded, merged
+serially — bit-exact with serial), `parallel_prefix_sum` (two-phase
+blocked scan) and `parallel_topk` (per-chunk heaps, merge). Every one
+falls back to the serial path below `SERIAL_THRESHOLD`, where the launch
+barrier would dominate.

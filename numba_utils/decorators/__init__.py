@@ -6,7 +6,7 @@ from numba_utils.decorators._wrappers import (
     boundscheck,
     cached_njit,
     njit_fast,
-    parallel,
+    njit_parallel,
 )
 
 __all__ = [
@@ -15,5 +15,5 @@ __all__ = [
     "boundscheck",
     "cached_njit",
     "njit_fast",
-    "parallel",
+    "njit_parallel",
 ]

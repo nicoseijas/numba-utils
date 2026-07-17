@@ -7,7 +7,7 @@ from numba_utils.decorators import (
     boundscheck,
     cached_njit,
     njit_fast,
-    parallel,
+    njit_parallel,
 )
 
 
@@ -51,7 +51,7 @@ class TestParallel:
     def test_computes_correctly(self):
         from numba import prange
 
-        @parallel
+        @njit_parallel
         def psum(arr):
             acc = 0.0
             for i in prange(arr.shape[0]):
@@ -62,7 +62,7 @@ class TestParallel:
         assert psum(arr) == pytest.approx(10_000.0)
 
     def test_parallel_flag_set(self):
-        fn = parallel(_sum_impl)
+        fn = njit_parallel(_sum_impl)
         assert fn.targetoptions["parallel"] is True
 
 
@@ -85,7 +85,7 @@ class TestCacheKillSwitch:
 
     def test_kill_switch_disables_all_decorators(self, monkeypatch):
         monkeypatch.setenv(CACHE_ENV_VAR, "0")
-        for decorator in (cached_njit, njit_fast, parallel, boundscheck):
+        for decorator in (cached_njit, njit_fast, njit_parallel, boundscheck):
             fn = decorator(_sum_impl)
             assert not _caching_enabled(fn)
 

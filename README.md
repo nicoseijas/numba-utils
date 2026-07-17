@@ -42,7 +42,13 @@ See [VISION.md](VISION.md), [ROADMAP.md](ROADMAP.md) and
 
 Phase 1 in development. Available modules:
 
-- `numba_utils.decorators` — `njit_fast`, `parallel`, `cached_njit`, `boundscheck`
+- `numba_utils.decorators` — `njit_fast`, `njit_parallel`, `cached_njit`,
+  `boundscheck`
+- `numba_utils.parallel` — battle-tested parallel building blocks:
+  `parallel_sum`, `parallel_reduce`, `parallel_histogram`,
+  `parallel_prefix_sum`, `parallel_topk` (complete operations with serial
+  fallbacks, private per-thread state, no false sharing — see
+  [docs/parallelism.md](docs/parallelism.md))
 - `numba_utils.profiling` — `benchmark`, `compare`, `warmup`, `compile_time`
 - `numba_utils.arrays` — `binary_search`, `lower_bound`, `upper_bound`,
   `fast_clip`, `normalize`, `cumulative_sum`, `rolling_sum`, `rolling_mean`,

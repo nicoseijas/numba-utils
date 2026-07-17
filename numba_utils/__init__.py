@@ -37,7 +37,19 @@ from numba_utils.collections import (
     counter,
     typed_defaultdict,
 )
-from numba_utils.decorators import boundscheck, cached_njit, njit_fast, parallel
+from numba_utils.decorators import (
+    boundscheck,
+    cached_njit,
+    njit_fast,
+    njit_parallel,
+)
+from numba_utils.parallel import (
+    parallel_histogram,
+    parallel_prefix_sum,
+    parallel_reduce,
+    parallel_sum,
+    parallel_topk,
+)
 from numba_utils.profiling import (
     BenchmarkResult,
     ComparisonResult,
@@ -96,9 +108,14 @@ __all__ = [
     "insertion_sort",
     "lower_bound",
     "njit_fast",
+    "njit_parallel",
     "normalize",
     "nth_element",
-    "parallel",
+    "parallel_histogram",
+    "parallel_prefix_sum",
+    "parallel_reduce",
+    "parallel_sum",
+    "parallel_topk",
     "partial_sort",
     "permutation",
     "quickselect",
