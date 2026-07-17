@@ -4,11 +4,39 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "numba-utils"
-version = "0.1.0"
-description = "High-performance building blocks for Numba."
+dynamic = ["version"]
+description = "Battle-tested building blocks for production Numba workloads."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
+authors = [{ name = "Nicolás Seijas", email = "nicoseijas@gmail.com" }]
+keywords = [
+    "numba",
+    "njit",
+    "jit",
+    "high-performance",
+    "numerical-computing",
+    "hpc",
+    "parallel",
+    "benchmarking",
+    "data-structures",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development :: Libraries",
+    "Typing :: Typed",
+]
 dependencies = [
     "numba",
     "numpy",
@@ -17,7 +45,19 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest",
+    "build",
+    "twine",
 ]
+
+[project.urls]
+Homepage = "https://github.com/nicoseijas/numba-utils"
+Repository = "https://github.com/nicoseijas/numba-utils"
+Documentation = "https://github.com/nicoseijas/numba-utils/tree/main/docs"
+Changelog = "https://github.com/nicoseijas/numba-utils/blob/main/CHANGELOG.md"
+Issues = "https://github.com/nicoseijas/numba-utils/issues"
+
+[tool.setuptools.dynamic]
+version = { attr = "numba_utils.__version__" }
 
 [tool.setuptools.packages.find]
 include = ["numba_utils*"]

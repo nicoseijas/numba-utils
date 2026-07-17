@@ -68,8 +68,8 @@ surprises again.
 numba-utils ships more than code. It ships the production knowledge
 that usually stays trapped inside numerical projects — as kernels with
 the pitfalls engineered around, as diagnostics, and as
-[documentation](docs). It does not compete with Numba: it builds on top
-of it.
+[documentation](https://github.com/nicoseijas/numba-utils/tree/main/docs).
+It does not compete with Numba: it builds on top of it.
 
 ## Why not...
 
@@ -77,7 +77,9 @@ of it.
   The containers here are jitclasses usable inside `@njit`.
 - **NumPy?** Many helpers are built to run *inside* compiled kernels,
   where NumPy calls can't reach. Where NumPy is faster (bandwidth-bound
-  sweeps, its SIMD sort), [BENCHMARKS.md](BENCHMARKS.md) says so.
+  sweeps, its SIMD sort),
+  [BENCHMARKS.md](https://github.com/nicoseijas/numba-utils/blob/main/BENCHMARKS.md)
+  says so.
 - **SciPy?** A heavy dependency that isn't njit-callable; this stays at
   NumPy + Numba and works in the compiled path.
 - **Numba itself?** Numba is a compiler. numba-utils is a standard
@@ -91,7 +93,8 @@ of it.
 4. **Minimal APIs** — `topk(arr, 10)`, not twenty keyword parameters.
 5. **Benchmark Honesty** — losses are published next to the wins.
 
-The identity behind these: [docs/philosophy.md](docs/philosophy.md).
+The identity behind these:
+[docs/philosophy.md](https://github.com/nicoseijas/numba-utils/blob/main/docs/philosophy.md).
 
 ## Modules
 
@@ -101,18 +104,23 @@ profiling (JIT excluded by default), diagnostics ·
 **Data structures** — collections, random ·
 **Developer tools** — testing, config
 
-Full API: [docs/modules.md](docs/modules.md) · Runnable code:
-[examples/](examples)
+Full API:
+[docs/modules.md](https://github.com/nicoseijas/numba-utils/blob/main/docs/modules.md)
+· Runnable code:
+[examples/](https://github.com/nicoseijas/numba-utils/tree/main/examples)
 
 ## Benchmark honesty
 
 Every algorithm states whether it is **faster**, **similar but more
 ergonomic**, or **slower but solving a problem unavailable elsewhere**.
-[BENCHMARKS.md](BENCHMARKS.md) contains losing rows on purpose: they
-tell you when NOT to use a function. Backed in-repo by reproducible
-[benchmarks/](benchmarks), 200+ reference-validated tests
-([why there's no coverage badge](docs/testing.md)), and CI running all
-of it. Trade-off records: [docs/design/](docs/design).
+[BENCHMARKS.md](https://github.com/nicoseijas/numba-utils/blob/main/BENCHMARKS.md)
+contains losing rows on purpose: they tell you when NOT to use a
+function. Backed in-repo by reproducible
+[benchmarks/](https://github.com/nicoseijas/numba-utils/tree/main/benchmarks),
+200+ reference-validated tests
+([why there's no coverage badge](https://github.com/nicoseijas/numba-utils/blob/main/docs/testing.md)),
+and CI running all of it. Trade-off records:
+[docs/design/](https://github.com/nicoseijas/numba-utils/tree/main/docs/design).
 
 ## Used in
 
@@ -122,7 +130,8 @@ simulations, optimization loops.
 
 ## Status
 
-Phase 1 (see [ROADMAP.md](ROADMAP.md)):
+Phase 1 (see
+[ROADMAP.md](https://github.com/nicoseijas/numba-utils/blob/main/ROADMAP.md)):
 
 - [x] decorators, profiling, diagnostics, config
 - [x] arrays, algorithms, random, collections
@@ -138,5 +147,6 @@ python -m venv .venv
 .venv/Scripts/python -m pytest
 ```
 
-Contributions follow [GUIDELINES.md](GUIDELINES.md) — benchmarks are
-mandatory, honesty is policy.
+Contributions follow
+[GUIDELINES.md](https://github.com/nicoseijas/numba-utils/blob/main/GUIDELINES.md)
+— benchmarks are mandatory, honesty is policy.
