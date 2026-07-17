@@ -1,5 +1,7 @@
 """numba-utils: high-performance building blocks for Numba."""
 
+from numba_utils import diagnostics
+from numba_utils._config import config, configure
 from numba_utils.algorithms import (
     argmax2,
     counting_sort,
@@ -49,8 +51,11 @@ __all__ = [
     "cached_njit",
     "compare",
     "compile_time",
+    "config",
+    "configure",
     "counting_sort",
     "cumulative_sum",
+    "diagnostics",
     "fast_argpartition",
     "fast_clip",
     "histogram",

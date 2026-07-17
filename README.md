@@ -29,6 +29,10 @@ Phase 1 in development. Available modules:
 - `numba_utils.algorithms` — `nth_element`, `quickselect`, `fast_argpartition`,
   `topk`, `argmax2`, `insertion_sort`, `partial_sort`, `counting_sort`,
   `radix_sort`
+- `numba_utils.diagnostics` — `show`, `check`, `inspect`: what did Numba
+  actually build, and which known issues apply to it
+- `numba_utils.configure` / `config` — global decorator policy (cache,
+  fastmath, parallel, nogil) from code or environment
 
 Measured results against NumPy live in [BENCHMARKS.md](BENCHMARKS.md).
 
@@ -63,18 +67,44 @@ python -m venv .venv
 `NUMBA_UTILS_DEV=1` (turns on array bounds checking; it vanishes in
 production builds).
 
-### Disabling the JIT cache
+## Configuration
 
-numba-utils decorators enable Numba's on-disk cache by default. On some
-setups — observed on Windows boxes running multi-process worker farms — a
-cached binary loaded by a process other than the one that compiled it
-crashes intermittently (access violation `0xC0000005`, and deleting
-`__pycache__` "fixes" it until the next run). If that pattern appears, set
+Decorator behavior can be overridden globally — from code or from the
+environment — without touching call sites:
+
+```python
+import numba_utils as nu
+
+nu.configure(cache=False)      # e.g. multi-process farms; see docs/numba-cache.md
+```
 
 ```
-NUMBA_UTILS_CACHE=0
+NUMBA_UTILS_CACHE=0            # same, from the environment (CI, worker farms)
 ```
 
-before importing: it strips `cache=True` from every numba-utils decorator,
-including explicit overrides, trading ~seconds of recompilation per process
-for deterministic behavior.
+Global overrides win over per-call arguments by design: they exist for
+environment-level policy. Options: `cache`, `fastmath`, `parallel`,
+`nogil`.
+
+## Diagnostics
+
+```python
+from numba_utils import diagnostics
+
+diagnostics.show(fn)     # signatures, cache state, flags, compile times
+diagnostics.check(fn)    # known-issue warnings with concrete recommendations
+```
+
+## Performance documentation
+
+Numba behaves differently in production than in tutorials. The knowledge
+is first-class documentation here:
+
+- [docs/performance.md](docs/performance.md) — when Numba wins, JIT
+  amortization, common mistakes
+- [docs/numba-cache.md](docs/numba-cache.md) — the on-disk cache and the
+  environments where it crashes
+- [docs/parallelism.md](docs/parallelism.md) — prange granularity,
+  process-level parallelism, structural rules
+- [docs/benchmarking.md](docs/benchmarking.md) — measuring JIT code
+  without fooling yourself

@@ -20,24 +20,16 @@ from typing import Any, Callable
 
 from numba import njit
 
+from numba_utils._config import OPTION_ENV_VARS, config
+
 DEV_MODE_ENV_VAR = "NUMBA_UTILS_DEV"
-CACHE_ENV_VAR = "NUMBA_UTILS_CACHE"
+CACHE_ENV_VAR = OPTION_ENV_VARS["cache"]
 
 _TRUTHY = frozenset({"1", "true", "yes", "on"})
-_FALSY = frozenset({"0", "false", "no", "off"})
 
 
 def _dev_mode_enabled() -> bool:
     return os.environ.get(DEV_MODE_ENV_VAR, "").strip().lower() in _TRUTHY
-
-
-def _cache_globally_disabled() -> bool:
-    # Emergency brake for machines where Numba's on-disk cache is unsafe:
-    # a cached binary loaded by a process other than the one that compiled
-    # it can segfault (seen as intermittent 0xC0000005 / rc139 on Windows
-    # multi-process farms). NUMBA_UTILS_CACHE=0 strips cache=True from
-    # every decorator here, including explicit overrides — by design.
-    return os.environ.get(CACHE_ENV_VAR, "").strip().lower() in _FALSY
 
 
 def _apply_njit(
@@ -46,8 +38,15 @@ def _apply_njit(
     overrides: dict[str, Any],
 ) -> Callable[..., Any]:
     options = {**defaults, **overrides}
-    if _cache_globally_disabled():
-        options["cache"] = False
+    # Global overrides (configure()/NUMBA_UTILS_* env) win over per-call
+    # arguments by design: they exist for environment-level policy, e.g.
+    # disabling the on-disk cache on machines where a binary loaded by a
+    # process other than the compiling one segfaults intermittently
+    # (0xC0000005 on Windows multi-process farms; docs/numba-cache.md).
+    for name in OPTION_ENV_VARS:
+        forced = config.resolve(name)
+        if forced is not None:
+            options[name] = forced
     if func is None:
         return lambda f: _apply_njit(f, options, {})
     if not callable(func):
@@ -86,9 +85,10 @@ def cached_njit(
     load from any process. On some setups (observed on Windows machines
     running multi-process farms) loading a binary compiled by another
     process crashes intermittently. If you see "random" segfaults that
-    disappear after deleting ``__pycache__``, set ``NUMBA_UTILS_CACHE=0``
-    — it disables caching across all numba-utils decorators, overriding
-    even explicit ``cache=True``.
+    disappear after deleting ``__pycache__``, disable caching globally
+    with ``configure(cache=False)`` or ``NUMBA_UTILS_CACHE=0`` — either
+    overrides even explicit ``cache=True``. Full story:
+    docs/numba-cache.md.
     """
     return _apply_njit(func, {"cache": True}, overrides)
 

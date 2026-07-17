@@ -11,9 +11,13 @@
 **Goal:** build a solid base.
 
 **Status:** `decorators/`, `profiling/`, `arrays/` and `algorithms/` implemented
-and benchmarked (see BENCHMARKS.md). Still pending from the lists below:
-`argpartition_topk` (covered by `algorithms.topk`/`fast_argpartition`),
-`stable_argsort` and `lexsort`. Next up: `random/` and `collections/`.
+and benchmarked (see BENCHMARKS.md). Beyond the original list, shipped:
+global configuration (`configure()` / `NUMBA_UTILS_*` env overrides), the
+`diagnostics/` module (`show`/`check`/`inspect`), and the permanent
+`docs/` knowledge base (performance, numba-cache, parallelism,
+benchmarking). Still pending from the lists below: `argpartition_topk`
+(covered by `algorithms.topk`/`fast_argpartition`), `stable_argsort` and
+`lexsort`. Next up: `random/` and `collections/`.
 
 ```
 numba_utils/
