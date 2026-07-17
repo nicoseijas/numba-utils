@@ -75,4 +75,5 @@ nav:
   - Testing: testing.md
   - Articles:
       - Why most Numba benchmarks are wrong: articles/why-most-numba-benchmarks-are-wrong.md
+      - Building a Priority Queue inside @njit: articles/priority-queue-inside-njit.md
   - Contributing: contributing.md
