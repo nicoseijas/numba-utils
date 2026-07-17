@@ -41,8 +41,9 @@ Every algorithm answers one of three questions, publicly:
 
 Never hide unfavorable results. Never benchmark unrealistic scenarios.
 Never exclude competitive implementations to look better.
-[BENCHMARKS.md](../BENCHMARKS.md) contains losing rows on purpose: they
-tell you when NOT to use a function, which is worth more than the wins.
+[BENCHMARKS.md](https://github.com/nicoseijas/numba-utils/blob/main/BENCHMARKS.md)
+contains losing rows on purpose: they tell you when NOT to use a
+function, which is worth more than the wins.
 
 ## Knowledge Is Part of the Library
 
@@ -55,8 +56,9 @@ documentation ([performance](performance.md), [cache](numba-cache.md),
 
 ---
 
-Enforcement lives in [GUIDELINES.md](../GUIDELINES.md) — these
-principles are why those rules exist. Individual trade-offs are
+Enforcement lives in
+[GUIDELINES.md](https://github.com/nicoseijas/numba-utils/blob/main/GUIDELINES.md)
+— these principles are why those rules exist. Individual trade-offs are
 recorded in [design/](design/README.md), and the testing counterpart of
 Benchmark Honesty — why no line-coverage badge exists — in
 [testing.md](testing.md).

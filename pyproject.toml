@@ -48,6 +48,9 @@ dev = [
     "build",
     "twine",
 ]
+docs = [
+    "mkdocs-material>=9.5",
+]
 
 [project.urls]
 Homepage = "https://github.com/nicoseijas/numba-utils"

@@ -1,0 +1,76 @@
+site_name: numba-utils
+site_description: Battle-tested building blocks for production Numba workloads.
+site_url: https://nicoseijas.github.io/numba-utils/
+site_author: Nicolás Seijas
+
+repo_url: https://github.com/nicoseijas/numba-utils
+repo_name: nicoseijas/numba-utils
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.top
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.snippets
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quickstart: getting-started/quickstart.md
+  - Core Concepts:
+      - Philosophy: philosophy.md
+      - Benchmark Honesty: benchmark-honesty.md
+  - Modules:
+      - Module reference: modules.md
+  - Performance Notes:
+      - Overview: performance.md
+      - Benchmarking: benchmarking.md
+      - Cache: numba-cache.md
+      - Parallelism: parallelism.md
+  - Design Records:
+      - Overview: design/README.md
+      - Cache: design/cache.md
+      - Typed Collections: design/collections.md
+      - Parallel: design/parallel.md
+      - RNG: design/rng.md
+      - Benchmarking: design/benchmarking.md
+  - Testing: testing.md
+  - Contributing: contributing.md
