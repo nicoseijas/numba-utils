@@ -129,6 +129,21 @@ One of the most interesting parts.
 
 A huge opportunity here.
 
+Design constraints learned from real Numba workloads (multi-process CFR
+farms) that this module must respect and document:
+
+- Fine-grained `prange` over tiny regions loses to serial: every launch
+  pays a full thread-team barrier. Parallelism pays on coarse,
+  independent, race-free slots — the API should push users there.
+- Repeated `prange` launches in one process can crash the threadpool on
+  some setups; long-lived processes with process-level parallelism across
+  independent work items are often the better architecture.
+- Cross-module `njit -> njit` calls into a parallel region have
+  segfaulted in the wild; parallel kernels should be co-located with
+  their `prange` driver.
+- Micro-benchmarks of jitted loops over-report throughput (loop
+  hoisting); benchmark helpers must measure realistic call patterns.
+
 - `parallel_range`
 
   ```python

@@ -62,3 +62,19 @@ python -m venv .venv
 `@boundscheck` development mode is enabled with the environment variable
 `NUMBA_UTILS_DEV=1` (turns on array bounds checking; it vanishes in
 production builds).
+
+### Disabling the JIT cache
+
+numba-utils decorators enable Numba's on-disk cache by default. On some
+setups — observed on Windows boxes running multi-process worker farms — a
+cached binary loaded by a process other than the one that compiled it
+crashes intermittently (access violation `0xC0000005`, and deleting
+`__pycache__` "fixes" it until the next run). If that pattern appears, set
+
+```
+NUMBA_UTILS_CACHE=0
+```
+
+before importing: it strips `cache=True` from every numba-utils decorator,
+including explicit overrides, trading ~seconds of recompilation per process
+for deterministic behavior.

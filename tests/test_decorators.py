@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 from numba_utils.decorators import (
+    CACHE_ENV_VAR,
     DEV_MODE_ENV_VAR,
     boundscheck,
     cached_njit,
@@ -69,6 +70,34 @@ class TestCachedNjit:
     def test_computes_correctly(self):
         fn = cached_njit(_sum_impl)
         arr = np.arange(50, dtype=np.float64)
+        assert fn(arr) == pytest.approx(arr.sum())
+
+
+def _caching_enabled(dispatcher) -> bool:
+    return type(dispatcher._cache).__name__ != "NullCache"
+
+
+class TestCacheKillSwitch:
+    def test_default_has_caching(self, monkeypatch):
+        monkeypatch.delenv(CACHE_ENV_VAR, raising=False)
+        fn = cached_njit(_sum_impl)
+        assert _caching_enabled(fn)
+
+    def test_kill_switch_disables_all_decorators(self, monkeypatch):
+        monkeypatch.setenv(CACHE_ENV_VAR, "0")
+        for decorator in (cached_njit, njit_fast, parallel, boundscheck):
+            fn = decorator(_sum_impl)
+            assert not _caching_enabled(fn)
+
+    def test_kill_switch_overrides_explicit_cache_true(self, monkeypatch):
+        monkeypatch.setenv(CACHE_ENV_VAR, "0")
+        fn = cached_njit(cache=True)(_sum_impl)
+        assert not _caching_enabled(fn)
+
+    def test_disabled_function_still_computes(self, monkeypatch):
+        monkeypatch.setenv(CACHE_ENV_VAR, "off")
+        fn = njit_fast(_sum_impl)
+        arr = np.arange(10, dtype=np.float64)
         assert fn(arr) == pytest.approx(arr.sum())
 
 
