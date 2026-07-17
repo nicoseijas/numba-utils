@@ -1,6 +1,6 @@
 """numba-utils: high-performance building blocks for Numba."""
 
-from numba_utils import diagnostics
+from numba_utils import diagnostics, testing
 from numba_utils._config import config, configure
 from numba_utils.algorithms import (
     argmax2,
@@ -127,6 +127,7 @@ __all__ = [
     "rolling_sum",
     "seed",
     "shuffle",
+    "testing",
     "topk",
     "typed_defaultdict",
     "unique_sorted",

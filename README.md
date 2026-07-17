@@ -49,7 +49,13 @@ Phase 1 in development. Available modules:
   `parallel_prefix_sum`, `parallel_topk` (complete operations with serial
   fallbacks, private per-thread state, no false sharing — see
   [docs/parallelism.md](docs/parallelism.md))
-- `numba_utils.profiling` — `benchmark`, `compare`, `warmup`, `compile_time`
+- `numba_utils.profiling` — `benchmark` (function mode excludes JIT
+  compilation by default — the mistake most Numba benchmarks make),
+  `compare`, `warmup`, `compile_time`, `compile_stats`
+- `numba_utils.testing` — `assert_equivalent(python_impl, njit_impl,
+  random_arrays(...))`: validate kernels against an independent reference
+  with generated edge cases; `deterministic_rng` pins NumPy legacy,
+  NumPy Generator AND Numba's separate nopython RNG in one call
 - `numba_utils.arrays` — `binary_search`, `lower_bound`, `upper_bound`,
   `fast_clip`, `normalize`, `cumulative_sum`, `rolling_sum`, `rolling_mean`,
   `histogram`, `bincount`, `unique_sorted`

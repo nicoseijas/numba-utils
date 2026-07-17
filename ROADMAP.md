@@ -17,14 +17,27 @@ the original list, shipped: global configuration (`configure()` /
 (`show`/`check`/`inspect`), and the permanent `docs/` knowledge base
 (performance, numba-cache, parallelism, benchmarking).
 
+`parallel/` shipped as complete parallel operations (parallel_sum,
+parallel_reduce, parallel_histogram, parallel_prefix_sum, parallel_topk)
+with serial fallbacks below `SERIAL_THRESHOLD` — patterns, not prange
+wrappers. The `@parallel` decorator was renamed `njit_parallel`, freeing
+the `parallel` name for the subpackage. `profiling/` gained function-mode
+`benchmark` (JIT excluded by default) and `compile_stats`. `testing/`
+shipped `assert_equivalent` + `random_arrays` + `deterministic_rng`
+(`benchmark_assert` deferred: speedup assertions are flaky in CI by
+design).
+
 Naming/scope notes: `alias_sampler` shipped as `alias_setup` +
 `alias_draw` + `alias_sample` (setup/draw split preserves the O(1)-per-
 draw property); `Counter` shipped as the `counter` function; `Multiset`
 deferred (`counter` covers the counting use). Collections fix dtypes in
 v1 (`float64` values, `int64` indices) — dtype-generic factories pending.
 Still pending: `argpartition_topk` (covered by
-`topk`/`fast_argpartition`), `stable_argsort`, `lexsort`. Next up:
-`math/`, `testing/` helpers, or dtype-generic collections.
+`topk`/`fast_argpartition`), `stable_argsort`, `lexsort`.
+
+Direction (2026-07-17): identity over quantity. `math/` is deprioritized
+— only functions that are genuinely hard to implement with Numba or
+where a clear improvement exists.
 
 ```
 numba_utils/
