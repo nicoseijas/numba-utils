@@ -10,14 +10,21 @@
 
 **Goal:** build a solid base.
 
-**Status:** `decorators/`, `profiling/`, `arrays/` and `algorithms/` implemented
-and benchmarked (see BENCHMARKS.md). Beyond the original list, shipped:
-global configuration (`configure()` / `NUMBA_UTILS_*` env overrides), the
-`diagnostics/` module (`show`/`check`/`inspect`), and the permanent
-`docs/` knowledge base (performance, numba-cache, parallelism,
-benchmarking). Still pending from the lists below: `argpartition_topk`
-(covered by `algorithms.topk`/`fast_argpartition`), `stable_argsort` and
-`lexsort`. Next up: `random/` and `collections/`.
+**Status:** `decorators/`, `profiling/`, `arrays/`, `algorithms/`, `random/`
+and `collections/` implemented and benchmarked (see BENCHMARKS.md). Beyond
+the original list, shipped: global configuration (`configure()` /
+`NUMBA_UTILS_*` env overrides), the `diagnostics/` module
+(`show`/`check`/`inspect`), and the permanent `docs/` knowledge base
+(performance, numba-cache, parallelism, benchmarking).
+
+Naming/scope notes: `alias_sampler` shipped as `alias_setup` +
+`alias_draw` + `alias_sample` (setup/draw split preserves the O(1)-per-
+draw property); `Counter` shipped as the `counter` function; `Multiset`
+deferred (`counter` covers the counting use). Collections fix dtypes in
+v1 (`float64` values, `int64` indices) — dtype-generic factories pending.
+Still pending: `argpartition_topk` (covered by
+`topk`/`fast_argpartition`), `stable_argsort`, `lexsort`. Next up:
+`math/`, `testing/` helpers, or dtype-generic collections.
 
 ```
 numba_utils/

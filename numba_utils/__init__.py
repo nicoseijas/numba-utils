@@ -26,6 +26,17 @@ from numba_utils.arrays import (
     unique_sorted,
     upper_bound,
 )
+from numba_utils.collections import (
+    BitSet,
+    FixedQueue,
+    ObjectPool,
+    PriorityQueue,
+    RingBuffer,
+    SparseSet,
+    Stack,
+    counter,
+    typed_defaultdict,
+)
 from numba_utils.decorators import boundscheck, cached_njit, njit_fast, parallel
 from numba_utils.profiling import (
     BenchmarkResult,
@@ -36,23 +47,46 @@ from numba_utils.profiling import (
     compile_time,
     warmup,
 )
+from numba_utils.random import (
+    alias_draw,
+    alias_sample,
+    alias_setup,
+    choice,
+    permutation,
+    reservoir_sampling,
+    seed,
+    shuffle,
+    weighted_sampling,
+)
 
 __version__ = "0.1.0"
 
 __all__ = [
     "BenchmarkResult",
+    "BitSet",
     "ComparisonResult",
+    "FixedQueue",
+    "ObjectPool",
+    "PriorityQueue",
+    "RingBuffer",
+    "SparseSet",
+    "Stack",
     "TimingStats",
+    "alias_draw",
+    "alias_sample",
+    "alias_setup",
     "argmax2",
     "benchmark",
     "bincount",
     "binary_search",
     "boundscheck",
     "cached_njit",
+    "choice",
     "compare",
     "compile_time",
     "config",
     "configure",
+    "counter",
     "counting_sort",
     "cumulative_sum",
     "diagnostics",
@@ -66,12 +100,18 @@ __all__ = [
     "nth_element",
     "parallel",
     "partial_sort",
+    "permutation",
     "quickselect",
     "radix_sort",
+    "reservoir_sampling",
     "rolling_mean",
     "rolling_sum",
+    "seed",
+    "shuffle",
     "topk",
+    "typed_defaultdict",
     "unique_sorted",
     "upper_bound",
     "warmup",
+    "weighted_sampling",
 ]

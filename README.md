@@ -29,6 +29,12 @@ Phase 1 in development. Available modules:
 - `numba_utils.algorithms` — `nth_element`, `quickselect`, `fast_argpartition`,
   `topk`, `argmax2`, `insertion_sort`, `partial_sort`, `counting_sort`,
   `radix_sort`
+- `numba_utils.random` — `seed`, `shuffle`, `permutation`, `choice`,
+  `reservoir_sampling`, `weighted_sampling`, `alias_setup`/`alias_draw`/
+  `alias_sample` (all over Numba's nopython RNG)
+- `numba_utils.collections` — `Stack`, `FixedQueue`, `RingBuffer`,
+  `PriorityQueue`, `BitSet`, `SparseSet`, `ObjectPool` (jitclass-based,
+  usable inside `@njit`), plus `counter` and `typed_defaultdict`
 - `numba_utils.diagnostics` — `show`, `check`, `inspect`: what did Numba
   actually build, and which known issues apply to it
 - `numba_utils.configure` / `config` — global decorator policy (cache,
