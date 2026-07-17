@@ -23,6 +23,14 @@ Phase 1 in development. Available modules:
 
 - `numba_utils.decorators` — `njit_fast`, `parallel`, `cached_njit`, `boundscheck`
 - `numba_utils.profiling` — `benchmark`, `compare`, `warmup`, `compile_time`
+- `numba_utils.arrays` — `binary_search`, `lower_bound`, `upper_bound`,
+  `fast_clip`, `normalize`, `cumulative_sum`, `rolling_sum`, `rolling_mean`,
+  `histogram`, `bincount`, `unique_sorted`
+- `numba_utils.algorithms` — `nth_element`, `quickselect`, `fast_argpartition`,
+  `topk`, `argmax2`, `insertion_sort`, `partial_sort`, `counting_sort`,
+  `radix_sort`
+
+Measured results against NumPy live in [BENCHMARKS.md](BENCHMARKS.md).
 
 ## Quick start
 
