@@ -4,6 +4,7 @@ __pycache__/
 *.nbc
 .venv/
 .pytest_cache/
+.coverage
 *.egg-info/
 dist/
 build/

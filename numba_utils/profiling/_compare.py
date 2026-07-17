@@ -53,7 +53,7 @@ class ComparisonResult:
                 f"{stats.name:<12}"
                 f"{stats.mean * 1e3:>10.3f} ms"
                 f"{stats.median * 1e3:>10.3f} ms"
-                f"{stats.variance * 1e6:>10.4f} ms²"
+                f"{stats.variance * 1e6:>10.4f} ms^2"
             )
         lines.append(
             f"speedup ({self.second.name} vs {self.first.name}): "

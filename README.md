@@ -1,98 +1,156 @@
 # numba-utils
 
-High-performance building blocks for [Numba](https://numba.pydata.org/).
+**Battle-tested building blocks for numerical computing with
+[Numba](https://numba.pydata.org/).** Built for engineers writing
+serious numerical software.
 
-## Why numba-utils?
+## Why this exists
 
-Numba is fantastic. But after writing enough kernels you end up
-rewriting the same things:
+After enough numerical projects — long-running Monte Carlo engines,
+solvers, simulation farms — you realize you've rewritten the same binary
+search, the same typed collections, the same sampling algorithms and the
+same benchmarking helpers again. And debugged the same Numba production
+surprises again. This library extracts those building blocks into a
+single, reusable, tested package.
 
-- typed collections that work inside `@njit`
-- sampling algorithms
-- search and selection primitives
-- battle-tested parallel patterns
-- profiling helpers that measure JIT code *correctly*
-- diagnostics for what the compiler actually built
+It does not compete with Numba: it builds on top of it.
 
-numba-utils packages those building blocks into a single, well-tested
-library. It does not compete with Numba: it builds on top of it — no
-magic, no hidden internals, everything callable from your own jitted
-code.
+```
+                    Numba
+                      ▲
+                      │
+                 numba-utils
+      ┌───────────────┼───────────────┐
+   Arrays        Collections       Parallel
+   Algorithms    Random            Profiling
+   Decorators    Testing           Diagnostics
+```
 
-It was born from years of demanding compute workloads — long-running
-Monte Carlo simulations and numerical engines where the same utilities
-had to be rewritten, re-optimized and re-benchmarked for every project.
-The lessons from that work are part of the library: as code, as
-diagnostics, and as documentation.
+## Design principles
 
-## Benchmark honesty
+1. **Performance First** — nothing ships without a benchmarked justification.
+2. **No Hidden Magic** — thin, readable layers over Numba; nothing rewrites your code.
+3. **Numba Compatible** — everything callable from your own `@njit` code, no hacks.
+4. **Minimal APIs** — `topk(arr, 10)`, not twenty keyword parameters.
+5. **Benchmark Honesty** — losses are published next to the wins.
 
-This project has an official policy (see
-[GUIDELINES.md](GUIDELINES.md)): every algorithm states whether it is
-**faster** than the standard alternative, **similar but more ergonomic**,
-or **slower but solving a problem unavailable elsewhere** — and
-unfavorable results are never hidden. [BENCHMARKS.md](BENCHMARKS.md)
-contains losing rows on purpose; they tell you when NOT to use a
-function, which is worth more than the wins.
+This is the project's identity, not a checklist: [docs/philosophy.md](docs/philosophy.md).
 
-See [VISION.md](VISION.md), [ROADMAP.md](ROADMAP.md) and
-[GUIDELINES.md](GUIDELINES.md).
+## Modules
 
-## Status
+**Core**
 
-Phase 1 in development. Available modules:
+- [`decorators`](numba_utils/decorators) — `njit_fast`, `njit_parallel`, `cached_njit`, `boundscheck`
+- [`arrays`](numba_utils/arrays) — search, transforms, rolling windows, histograms
+- [`algorithms`](numba_utils/algorithms) — selection, top-k, specialized sorts
 
-- `numba_utils.decorators` — `njit_fast`, `njit_parallel`, `cached_njit`,
-  `boundscheck`
-- `numba_utils.parallel` — battle-tested parallel building blocks:
-  `parallel_sum`, `parallel_reduce`, `parallel_histogram`,
-  `parallel_prefix_sum`, `parallel_topk` (complete operations with serial
-  fallbacks, private per-thread state, no false sharing — see
-  [docs/parallelism.md](docs/parallelism.md))
-- `numba_utils.profiling` — `benchmark` (function mode excludes JIT
-  compilation by default — the mistake most Numba benchmarks make),
-  `compare`, `warmup`, `compile_time`, `compile_stats`
-- `numba_utils.testing` — `assert_equivalent(python_impl, njit_impl,
-  random_arrays(...))`: validate kernels against an independent reference
-  with generated edge cases; `deterministic_rng` pins NumPy legacy,
-  NumPy Generator AND Numba's separate nopython RNG in one call
-- `numba_utils.arrays` — `binary_search`, `lower_bound`, `upper_bound`,
-  `fast_clip`, `normalize`, `cumulative_sum`, `rolling_sum`, `rolling_mean`,
-  `histogram`, `bincount`, `unique_sorted`
-- `numba_utils.algorithms` — `nth_element`, `quickselect`, `fast_argpartition`,
-  `topk`, `argmax2`, `insertion_sort`, `partial_sort`, `counting_sort`,
-  `radix_sort`
-- `numba_utils.random` — `seed`, `shuffle`, `permutation`, `choice`,
-  `reservoir_sampling`, `weighted_sampling`, `alias_setup`/`alias_draw`/
-  `alias_sample` (all over Numba's nopython RNG)
-- `numba_utils.collections` — `Stack`, `FixedQueue`, `RingBuffer`,
-  `PriorityQueue`, `BitSet`, `SparseSet`, `ObjectPool` (jitclass-based,
-  usable inside `@njit`), plus `counter` and `typed_defaultdict`
-- `numba_utils.diagnostics` — `show`, `check`, `inspect`: what did Numba
-  actually build, and which known issues apply to it
-- `numba_utils.configure` / `config` — global decorator policy (cache,
-  fastmath, parallel, nogil) from code or environment
+**Performance**
 
-Measured results against NumPy live in [BENCHMARKS.md](BENCHMARKS.md).
+- [`parallel`](numba_utils/parallel) — complete parallel operations, not prange wrappers ([docs](docs/parallelism.md))
+- [`profiling`](numba_utils/profiling) — benchmarking that excludes JIT compilation *by default* ([docs](docs/benchmarking.md))
+- [`diagnostics`](numba_utils/diagnostics) — what Numba actually built, and which known issues apply
 
-## Quick start
+**Data structures**
+
+- [`collections`](numba_utils/collections) — Stack, PriorityQueue, RingBuffer, BitSet, SparseSet, ObjectPool… usable inside `@njit`
+- [`random`](numba_utils/random) — shuffling, reservoir and weighted sampling, Walker alias method
+
+**Developer tools**
+
+- [`testing`](numba_utils/testing) — validate kernels against independent references with generated edge cases
+- [`config`](numba_utils/_config.py) — global policy (cache, fastmath, parallel, nogil) from code or environment
+
+## Examples
+
+Write a kernel, benchmark it honestly — warmup is the default, so JIT
+compilation never pollutes the numbers:
 
 ```python
-import numpy as np
 from numba_utils import njit_fast, compare
 
 @njit_fast
-def total(arr):
-    acc = 0.0
-    for x in arr:
-        acc += x
-    return acc
+def clipped_energy(values, lo, hi):
+    total = 0.0
+    for i in range(values.shape[0]):
+        x = min(max(values[i], lo), hi)
+        total += x * x
+    return total
 
-arr = np.random.rand(10_000_000)
-
-result = compare(np.sum, total, args=(arr,), n=50)
-print(result.summary())
+compare(numpy_version, clipped_energy, args=(values, -1.0, 1.0)).summary()
+# fused single pass: 31x vs np.sum(np.clip(v, lo, hi) ** 2)
 ```
+
+Containers that work *inside* jitted code:
+
+```python
+from numba import njit
+from numba_utils import PriorityQueue, SparseSet
+
+@njit
+def simulate(n_events):
+    events = PriorityQueue(n_events)   # constructed in nopython mode
+    active = SparseSet(1000)           # O(1) add/discard/contains/clear
+    ...
+```
+
+Trust, then verify — every kernel against an independent reference:
+
+```python
+from numba_utils import diagnostics
+from numba_utils.testing import assert_equivalent, random_arrays
+
+assert_equivalent(numpy_impl, njit_impl, random_arrays(n_cases=20, size=10_000))
+diagnostics.check(njit_impl)   # known-issue warnings with recommendations
+```
+
+Runnable versions: [examples/](examples).
+
+## Benchmark honesty
+
+Every algorithm states whether it is **faster** than the standard
+alternative, **similar but more ergonomic**, or **slower but solving a
+problem unavailable elsewhere** — and unfavorable results are never
+hidden. [BENCHMARKS.md](BENCHMARKS.md) contains losing rows on purpose:
+they tell you when NOT to use a function.
+
+The claims above are backed in-repo: reproducible
+[benchmarks/](benchmarks) (fixed seeds, published environment), 200+
+tests where every kernel is validated against an independent reference
+(NumPy, heapq, set — nopython code fails *silently* out of bounds, so
+reference validation is the only trustworthy coverage), runnable
+[examples/](examples), technical [docs/](docs), and CI running all of it.
+
+## Used in
+
+The patterns here were extracted from real workloads:
+
+- Monte Carlo equity engines
+- game-theory solvers (CFR)
+- quantitative research
+- scientific simulations
+- optimization loops
+
+## Configuration
+
+Environment-level policy without touching call sites — e.g. Numba's
+on-disk cache crashes intermittently on some multi-process setups
+([docs/numba-cache.md](docs/numba-cache.md)):
+
+```python
+import numba_utils as nu
+nu.configure(cache=False)        # or NUMBA_UTILS_CACHE=0 in the environment
+```
+
+## Status
+
+Phase 1 (see [ROADMAP.md](ROADMAP.md)):
+
+- [x] decorators, profiling, diagnostics, config
+- [x] arrays, algorithms
+- [x] random, collections
+- [x] parallel patterns, testing helpers
+- [ ] dtype-generic collections, `stable_argsort`, `lexsort`
+- [ ] PyPI release
 
 ## Development
 
@@ -102,48 +160,6 @@ python -m venv .venv
 .venv/Scripts/python -m pytest
 ```
 
-`@boundscheck` development mode is enabled with the environment variable
-`NUMBA_UTILS_DEV=1` (turns on array bounds checking; it vanishes in
-production builds).
-
-## Configuration
-
-Decorator behavior can be overridden globally — from code or from the
-environment — without touching call sites:
-
-```python
-import numba_utils as nu
-
-nu.configure(cache=False)      # e.g. multi-process farms; see docs/numba-cache.md
-```
-
-```
-NUMBA_UTILS_CACHE=0            # same, from the environment (CI, worker farms)
-```
-
-Global overrides win over per-call arguments by design: they exist for
-environment-level policy. Options: `cache`, `fastmath`, `parallel`,
-`nogil`.
-
-## Diagnostics
-
-```python
-from numba_utils import diagnostics
-
-diagnostics.show(fn)     # signatures, cache state, flags, compile times
-diagnostics.check(fn)    # known-issue warnings with concrete recommendations
-```
-
-## Performance documentation
-
-Numba behaves differently in production than in tutorials. The knowledge
-is first-class documentation here:
-
-- [docs/performance.md](docs/performance.md) — when Numba wins, JIT
-  amortization, common mistakes
-- [docs/numba-cache.md](docs/numba-cache.md) — the on-disk cache and the
-  environments where it crashes
-- [docs/parallelism.md](docs/parallelism.md) — prange granularity,
-  process-level parallelism, structural rules
-- [docs/benchmarking.md](docs/benchmarking.md) — measuring JIT code
-  without fooling yourself
+Contributions follow [GUIDELINES.md](GUIDELINES.md) — benchmarks are
+mandatory, honesty is policy. Project docs: [VISION.md](VISION.md),
+[ROADMAP.md](ROADMAP.md), [docs/](docs).
