@@ -2,17 +2,38 @@
 
 High-performance building blocks for [Numba](https://numba.pydata.org/).
 
-Everything that any Numba developer ends up writing over and over again should
-live here. It does not compete with Numba: it builds on top of it.
+## Why numba-utils?
 
-## Why this project exists
+Numba is fantastic. But after writing enough kernels you end up
+rewriting the same things:
 
-This library was born from years of working on demanding compute workloads —
-long-running Monte Carlo simulations and numerical engines where the same
-utilities had to be rewritten, re-optimized and re-benchmarked for every new
-project. numba-utils collects those battle-tested building blocks in one
-place, so the next hot loop starts from proven, measured code instead of
-boilerplate.
+- typed collections that work inside `@njit`
+- sampling algorithms
+- search and selection primitives
+- battle-tested parallel patterns
+- profiling helpers that measure JIT code *correctly*
+- diagnostics for what the compiler actually built
+
+numba-utils packages those building blocks into a single, well-tested
+library. It does not compete with Numba: it builds on top of it — no
+magic, no hidden internals, everything callable from your own jitted
+code.
+
+It was born from years of demanding compute workloads — long-running
+Monte Carlo simulations and numerical engines where the same utilities
+had to be rewritten, re-optimized and re-benchmarked for every project.
+The lessons from that work are part of the library: as code, as
+diagnostics, and as documentation.
+
+## Benchmark honesty
+
+This project has an official policy (see
+[GUIDELINES.md](GUIDELINES.md)): every algorithm states whether it is
+**faster** than the standard alternative, **similar but more ergonomic**,
+or **slower but solving a problem unavailable elsewhere** — and
+unfavorable results are never hidden. [BENCHMARKS.md](BENCHMARKS.md)
+contains losing rows on purpose; they tell you when NOT to use a
+function, which is worth more than the wins.
 
 See [VISION.md](VISION.md), [ROADMAP.md](ROADMAP.md) and
 [GUIDELINES.md](GUIDELINES.md).

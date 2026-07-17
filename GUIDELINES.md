@@ -19,6 +19,29 @@ Accepted:
 | NumPy       | 18 ms |
 | numba-utils | 9 ms  |
 
+### Benchmark Honesty (official policy)
+
+Every algorithm in this library must answer one of these three
+questions, explicitly, in its docstring and in BENCHMARKS.md:
+
+1. **Faster** than the standard alternative — shown with numbers.
+2. **Similar performance but better ergonomics** — say so, and say why
+   the ergonomics matter.
+3. **Slower, but solves a problem unavailable elsewhere** — state the
+   loss AND the problem it uniquely solves.
+
+And three prohibitions:
+
+- **Never hide unfavorable results.** Losing rows stay in the table
+  (`radix_sort` full-range, `counter` vs `np.unique`).
+- **Never benchmark unrealistic scenarios.** Measure the call pattern a
+  real user would run (see docs/benchmarking.md).
+- **Never exclude competitive implementations to look better.** The
+  baseline is the best standard tool for the job, not a strawman.
+
+This transparency is what separates a serious technical library from a
+marketing collection.
+
 ## 3. Numba compatibility
 
 Everything must work with `@njit`. No hacks.
