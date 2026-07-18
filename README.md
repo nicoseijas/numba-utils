@@ -4,9 +4,13 @@
 [Numba](https://numba.pydata.org/) workloads.** Built for production
 numerical software with Numba.
 
+[![PyPI](https://img.shields.io/pypi/v/numba-utils)](https://pypi.org/project/numba-utils/)
+[![CI](https://github.com/nicoseijas/numba-utils/actions/workflows/ci.yml/badge.svg)](https://github.com/nicoseijas/numba-utils/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/pypi/pyversions/numba-utils)](https://pypi.org/project/numba-utils/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](https://github.com/nicoseijas/numba-utils/blob/main/LICENSE)
+
 ✓ Zero dependencies beyond NumPy + Numba &nbsp;·&nbsp; ✓ Callable inside
 `@njit` &nbsp;·&nbsp; ✓ Honest benchmarks &nbsp;·&nbsp; ✓ Diagnostics
-&nbsp;·&nbsp; ✓ CI &nbsp;·&nbsp; ✓ MIT
 
 ```
                     Numba
@@ -56,6 +60,15 @@ code:
   → NUMBA_UTILS_CACHE=0  or  configure(cache=False)
 ⚠ fastmath=True relaxes IEEE 754 — not for exact/reproducible results
 ```
+
+## Install
+
+```bash
+pip install numba-utils
+```
+
+Zero build steps: NumPy and Numba are the only dependencies, and Numba
+brings its own LLVM-based compiler.
 
 ## Why this exists
 
@@ -136,8 +149,8 @@ Phase 1 (see
 - [x] decorators, profiling, diagnostics, config
 - [x] arrays, algorithms, random, collections
 - [x] parallel patterns, testing helpers
+- [x] PyPI release ([`numba-utils`](https://pypi.org/project/numba-utils/))
 - [ ] dtype-generic collections, `stable_argsort`, `lexsort`
-- [ ] PyPI release
 
 ## Development
 
