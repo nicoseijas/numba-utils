@@ -141,6 +141,31 @@ Patterns extracted from real workloads: Monte Carlo equity engines,
 game-theory solvers (CFR), quantitative research, scientific
 simulations, optimization loops.
 
+## Works with [cachau](https://github.com/nicoseijas/Cachau)
+
+Result caching composes cleanly on top of numba-utils: the decorator
+aliases return real Numba dispatchers, so
+[cachau](https://pypi.org/project/cachau/) fingerprints them — including
+the options the aliases inject (`fastmath`, `parallel`) and global
+`configure()` / `NUMBA_UTILS_*` overrides. `@cache` goes outermost:
+
+```python
+from numba_utils.decorators import njit_fast
+from cachau import cache
+
+@cache(persist=True, max_memory="2GB")
+@njit_fast
+def simulate(values, iterations):
+    ...
+```
+
+A cachau HIT skips execution entirely; a MISS still benefits from
+`cache=True`'s compiled-code cache. Flipping a semantic option
+(`fastmath`, `parallel`, dev-mode `boundscheck`) changes the cache
+identity, so stale results are never served across semantics. Verified
+by cachau's
+[integration suite](https://github.com/nicoseijas/Cachau/blob/main/tests/test_numba_utils_compat.py).
+
 ## Status
 
 Phase 1 (see
