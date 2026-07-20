@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **random** — `weighted_sampling` and `alias_setup` now reject non-finite
+  weights (NaN, ±inf) and sums that overflow to infinity. Previously a NaN
+  weight passed the `w < 0` check and silently produced a degenerate
+  distribution (every draw returned index 0).
+
+### Changed
+
+- Ship `numba_utils/py.typed` so type checkers honour the annotations
+  (the `Typing :: Typed` classifier was already declared).
+- Declare the license as a PEP 639 `license = "MIT"` expression plus
+  `license-files`, replacing the deprecated table form and classifier.
+- CI now tests every supported Python (3.10–3.13), not just 3.11 and 3.13.
+
 ## [0.1.0] - 2026-07-17
 
 Foundational release. This first public version focuses on the building
