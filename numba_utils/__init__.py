@@ -72,7 +72,7 @@ from numba_utils.random import (
     weighted_sampling,
 )
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 __all__ = [
     "BenchmarkResult",

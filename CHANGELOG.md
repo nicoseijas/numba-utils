@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-07-20
+
+Audit follow-up: one silent-wrong-answer fix in weighted sampling, plus
+packaging and CI corrections. No API changes.
+
 ### Fixed
 
 - **random** — `weighted_sampling` and `alias_setup` now reject non-finite
@@ -21,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Declare the license as a PEP 639 `license = "MIT"` expression plus
   `license-files`, replacing the deprecated table form and classifier.
 - CI now tests every supported Python (3.10–3.13), not just 3.11 and 3.13.
+- Workflow actions bumped to current majors (`checkout@v7`,
+  `setup-python@v7`, `upload-pages-artifact@v5`, `deploy-pages@v5`) —
+  the previous pins ran on the deprecated Node 20 runtime.
 
 ## [0.1.0] - 2026-07-17
 
@@ -60,5 +68,6 @@ and additional algorithms without breaking them.
   (`cache` / `fastmath` / `parallel` / `nogil`) and `NUMBA_UTILS_*`
   environment variables.
 
-[Unreleased]: https://github.com/nicoseijas/numba-utils/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/nicoseijas/numba-utils/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/nicoseijas/numba-utils/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/nicoseijas/numba-utils/releases/tag/v0.1.0
