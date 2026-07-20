@@ -133,6 +133,16 @@ class TestWeightedSampling:
         with pytest.raises(ValueError):
             weighted_sampling(np.zeros(3), 1)
 
+    @pytest.mark.parametrize("bad", [np.nan, np.inf, -np.inf])
+    def test_non_finite_weight_raises(self, bad):
+        with pytest.raises(ValueError):
+            weighted_sampling(np.array([1.0, bad]), 5)
+
+    def test_overflowing_sum_raises(self):
+        huge = np.finfo(np.float64).max
+        with pytest.raises(ValueError):
+            weighted_sampling(np.array([huge, huge]), 5)
+
 
 class TestAlias:
     def test_matches_weighted_proportions(self):
@@ -162,6 +172,16 @@ class TestAlias:
             alias_setup(np.empty(0))
         with pytest.raises(ValueError):
             alias_setup(np.array([-1.0, 2.0]))
+
+    @pytest.mark.parametrize("bad", [np.nan, np.inf, -np.inf])
+    def test_non_finite_weight_raises(self, bad):
+        with pytest.raises(ValueError):
+            alias_setup(np.array([1.0, bad]))
+
+    def test_overflowing_sum_raises(self):
+        huge = np.finfo(np.float64).max
+        with pytest.raises(ValueError):
+            alias_setup(np.array([huge, huge]))
 
     def test_callable_from_jitted_code(self):
         @njit

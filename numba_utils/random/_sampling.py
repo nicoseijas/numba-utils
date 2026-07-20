@@ -36,7 +36,8 @@ def weighted_sampling(weights, size):
     Cumulative sums + binary search: O(n + size·log n). For many draws
     from the same fixed weights, :func:`alias_setup` + :func:`alias_sample`
     is O(n) setup + O(1) per draw. Zero weights are never sampled;
-    negative or all-zero weights raise ``ValueError``.
+    negative, non-finite (NaN/inf) or all-zero weights raise
+    ``ValueError``, as does a sum that overflows to infinity.
 
     Complexity: O(n + size·log n). Memory: O(n + size).
     """
@@ -48,11 +49,17 @@ def weighted_sampling(weights, size):
     cum = np.empty(n, np.float64)
     total = 0.0
     for i in range(n):
-        w = weights[i]
+        w = np.float64(weights[i])
+        # NaN fails every comparison, so test it explicitly: `w < 0` alone
+        # would let NaN through and silently produce a degenerate table.
+        if not np.isfinite(w):
+            raise ValueError("weighted_sampling: weight is not finite")
         if w < 0:
             raise ValueError("weighted_sampling: negative weight")
         total += w
         cum[i] = total
+    if not np.isfinite(total):
+        raise ValueError("weighted_sampling: weights sum is not finite")
     if total <= 0.0:
         raise ValueError("weighted_sampling: weights sum to zero")
     out = np.empty(size, np.int64)
@@ -78,9 +85,15 @@ def alias_setup(weights):
         raise ValueError("alias_setup: empty weights")
     total = 0.0
     for i in range(n):
-        if weights[i] < 0:
+        w = np.float64(weights[i])
+        # See weighted_sampling: NaN passes `w < 0`, so reject it up front.
+        if not np.isfinite(w):
+            raise ValueError("alias_setup: weight is not finite")
+        if w < 0:
             raise ValueError("alias_setup: negative weight")
-        total += weights[i]
+        total += w
+    if not np.isfinite(total):
+        raise ValueError("alias_setup: weights sum is not finite")
     if total <= 0.0:
         raise ValueError("alias_setup: weights sum to zero")
     prob = np.empty(n, np.float64)
