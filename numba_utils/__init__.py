@@ -79,6 +79,7 @@ from numba_utils.profiling import (
 from numba_utils.stats import (
     logsumexp,
     softmax,
+    weighted_mc_mean,
     weighted_quantile,
 )
 from numba_utils.random import (
@@ -186,6 +187,7 @@ __all__ = [
     "unique_sorted",
     "upper_bound",
     "warmup",
+    "weighted_mc_mean",
     "weighted_quantile",
     "weighted_sampling",
 ]

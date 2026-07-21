@@ -10,11 +10,13 @@ functions whose naive implementations are *wrong*, not just slow:
   NumPy itself supports with weights, and validates its inputs.
 """
 
+from numba_utils.stats._mc import weighted_mc_mean
 from numba_utils.stats._quantile import weighted_quantile
 from numba_utils.stats._softmax import logsumexp, softmax
 
 __all__ = [
     "logsumexp",
     "softmax",
+    "weighted_mc_mean",
     "weighted_quantile",
 ]

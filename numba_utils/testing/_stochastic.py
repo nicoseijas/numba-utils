@@ -72,6 +72,56 @@ def assert_reproducible(
     return reference
 
 
+def assert_within_se(
+    samples, target: float, *, k: float = 3.0
+) -> tuple[float, float]:
+    """Assert the mean of iid ``samples`` lies within ``k`` standard
+    errors of ``target``; returns ``(mean, se)``.
+
+    The SE is MEASURED from the samples (``std(ddof=1) / sqrt(n)``),
+    never assumed — a residual below an unmeasured noise floor is not
+    a pass. This is the one-sample-set primitive under
+    :func:`assert_converges`, which also documents the Student-t
+    false-positive rates the measured-SE statistic carries; the same
+    ``n >= 5`` floor applies. Contributed pattern from a production
+    CFR solver's certification harness.
+    """
+    arr = np.asarray(samples, np.float64)
+    if arr.ndim != 1:
+        raise ValueError("assert_within_se: samples must be 1-D")
+    n = arr.shape[0]
+    if n < 5:
+        raise ValueError(
+            "assert_within_se: need at least 5 samples (the measured-SE "
+            "statistic is Student-t; its false-positive rate explodes "
+            "below that)"
+        )
+    if not (k > 0):
+        raise ValueError("assert_within_se: k must be > 0")
+    if not math.isfinite(target):
+        raise ValueError("assert_within_se: target must be finite")
+    if not np.all(np.isfinite(arr)):
+        raise AssertionError("assert_within_se: samples contain a non-finite value")
+    mean = float(np.mean(arr))
+    se = float(np.std(arr, ddof=1) / math.sqrt(n))
+    if se == 0.0:
+        if mean != target:
+            raise AssertionError(
+                f"assert_within_se: all {n} samples are the identical "
+                f"value {mean!r} != target {target!r} — if they come "
+                "from seeded runs, the seeds are likely not reaching "
+                "the sampler"
+            )
+        return mean, se
+    deviation = abs(mean - target) / se
+    if deviation > k:
+        raise AssertionError(
+            f"assert_within_se: mean {mean!r} is {deviation:.2f} SE from "
+            f"target {target!r} (limit {k}; SE {se:.3g}, {n} samples)"
+        )
+    return mean, se
+
+
 def assert_converges(
     fn: Callable[..., Any],
     truth: float,
@@ -132,25 +182,7 @@ def assert_converges(
             values[r] = float(fn(seed + r, *args))
         else:
             values[r] = float(fn(*args))
-    if not np.all(np.isfinite(values)):
-        raise AssertionError(
-            "assert_converges: fn returned a non-finite value"
-        )
-    mean = float(np.mean(values))
-    se = float(np.std(values, ddof=1) / math.sqrt(n_runs))
-    if se == 0.0:
-        if mean != truth:
-            raise AssertionError(
-                f"assert_converges: all {n_runs} seeds produced the "
-                f"identical value {mean!r} != truth {truth!r} — the "
-                "seeds are likely not reaching the sampler"
-            )
-        return mean, se
-    deviation = abs(mean - truth) / se
-    if deviation > sigma:
-        raise AssertionError(
-            f"assert_converges: mean {mean!r} is {deviation:.2f} SE from "
-            f"truth {truth!r} (limit {sigma}; SE {se:.3g}, "
-            f"{n_runs} runs)"
-        )
-    return mean, se
+    try:
+        return assert_within_se(values, truth, k=sigma)
+    except AssertionError as exc:
+        raise AssertionError(f"assert_converges: {exc}") from None

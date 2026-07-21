@@ -2,7 +2,12 @@ import numpy as np
 import pytest
 from numba import njit
 
-from numba_utils.stats import logsumexp, softmax, weighted_quantile
+from numba_utils.stats import (
+    logsumexp,
+    softmax,
+    weighted_mc_mean,
+    weighted_quantile,
+)
 
 RNG = np.random.default_rng(17)
 
@@ -143,3 +148,62 @@ class TestWeightedQuantileZeroWeightEdge:
         expected = np.quantile(v, 0.0, weights=w, method="inverted_cdf")
         assert expected == 2.0
         assert weighted_quantile(v, w, 0.0) == expected
+
+
+class TestWeightedMcMean:
+    def test_exact_when_support_fits(self):
+        values = np.array([1.0, 2.0, 3.0, 4.0])
+        weights = np.array([1.0, 0.0, 3.0, 2.0])
+        exact = np.sum(weights * values) / np.sum(weights)
+        assert weighted_mc_mean(values, weights, 10, 7, 0) == exact
+
+    def test_estimates_the_weighted_mean(self):
+        rng = np.random.default_rng(3)
+        values = rng.normal(5.0, 2.0, 5000)
+        weights = rng.random(5000)
+        exact = np.sum(weights * values) / np.sum(weights)
+        estimates = [
+            weighted_mc_mean(values, weights, 500, key, 0)
+            for key in range(30)
+        ]
+        from numba_utils.testing import assert_within_se
+
+        assert_within_se(estimates, exact, k=4.0)
+
+    def test_reproducible_and_stream_dependent(self):
+        rng = np.random.default_rng(4)
+        values = rng.normal(0.0, 1.0, 1000)
+        weights = rng.random(1000)
+        a = weighted_mc_mean(values, weights, 100, 9, 0)
+        b = weighted_mc_mean(values, weights, 100, 9, 0)
+        c = weighted_mc_mean(values, weights, 100, 10, 0)
+        assert a == b
+        assert a != c
+
+    def test_validation(self):
+        v = np.array([1.0, 2.0])
+        w = np.array([1.0, 1.0])
+        with pytest.raises(ValueError):
+            weighted_mc_mean(np.empty(0), np.empty(0), 1, 0, 0)
+        with pytest.raises(ValueError):
+            weighted_mc_mean(v, np.array([1.0]), 1, 0, 0)
+        with pytest.raises(ValueError):
+            weighted_mc_mean(v, w, 0, 0, 0)
+        with pytest.raises(ValueError):
+            weighted_mc_mean(np.array([1.0, np.nan]), w, 1, 0, 0)
+        with pytest.raises(ValueError):
+            weighted_mc_mean(v, np.array([1.0, -1.0]), 1, 0, 0)
+        with pytest.raises(ValueError):
+            weighted_mc_mean(v, np.array([0.0, 0.0]), 1, 0, 0)
+
+    def test_callable_from_jitted_code(self):
+        @njit
+        def estimate(values, weights, key):
+            return weighted_mc_mean(values, weights, 50, key, 0)
+
+        rng = np.random.default_rng(5)
+        values = rng.normal(0.0, 1.0, 500)
+        weights = rng.random(500)
+        assert estimate(values, weights, 1) == weighted_mc_mean(
+            values, weights, 50, 1, 0
+        )

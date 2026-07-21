@@ -91,3 +91,31 @@ Counter-based (Philox) kernels are pure functions of their key —
 varying global seeds gives zero variance. Both asserts take
 `pass_seed=True`, which passes each run's seed to `fn` so the key can
 vary per run.
+
+## Certification: make the checks falsifiable
+
+A green reference test only certifies something if breaking the kernel
+turns it red. Two helpers (contributed from a production CFR solver's
+certification pyramid, where plausible numbers from an uncertified
+kernel voided real conclusions):
+
+- `mutation_screams(fn, threshold=...)` — `fn(broken)` runs the kernel
+  intact or with a deliberate bug injected; the deviation between the
+  two must EXCEED the threshold. A check that cannot fail certifies
+  nothing; this is the red half that proves the green half is alive.
+- `assert_within_se(samples, target, k=3)` — the one-sample-set
+  primitive under `assert_converges`: the SE is measured from the
+  samples, never assumed. A residual below an unmeasured noise floor
+  is not a pass.
+- `assert_no_reweight_bias(estimator)` — screams on the reach² bug
+  (subsampling proportional to the weights and then weighting again):
+  invisible at near-uniform weights, explosive at concentrated ones.
+  The correct pattern ships as `numba_utils.weighted_mc_mean`
+  (uniform-subsample-then-weight, Philox-driven).
+
+Two disciplines the same harness taught: derive the estimator FROM the
+estimand where possible (return both sides from one symmetric
+normalizer and the zero-sum identity cannot fail without a NaN — an
+algebraic consequence beats a test that can pass by accident), and
+prefer an independent reference that shares no code path with the
+kernel under test — `assert_equivalent` is built for exactly that.

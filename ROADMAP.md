@@ -108,6 +108,44 @@ the project's pitch. In implementation order:
    different seeds -> within N sigma of truth, with the false-positive
    rate documented.
 
+## Phase 4 — production-solver contributions (user-driven, in progress)
+
+Second contribution wave from the same production user: a bundle of
+primitives extracted from a PLO5 CFR solver, each arriving with its
+certification harness. Triaged 2026-07-21; sequencing follows the
+contributor's own suggestion (protect everything first, flagship
+second):
+
+1. **Certification testing** — `mutation_screams` (deliberately break
+   the kernel and assert the check FAILS: a check that cannot fail
+   certifies nothing) and `assert_within_se` (the one-sample-set
+   primitive that `assert_converges` now shares). Declined from the
+   proposal: `assert_vs_reference` — it is `assert_equivalent` under
+   another name; the gap was framing in docs, not API.
+2. **The reach² guard** — `weighted_mc_mean` (uniform-subsample-then-
+   weight, never both: subsampling proportional to weight and then
+   weighting again is invisible at near-uniform weights and explosive
+   at narrow ones) and `assert_no_reweight_bias`, the screamer that
+   catches it.
+3. **`disjoint_rank_aggregate` (flagship)** — reach-weighted all-pairs
+   comparison with EXACT set-disjointness via inclusion–exclusion over
+   the 2^K−1 key subsets: O((2^K−1)·N log N) vs the dense O(N²).
+   build/eval split (fixed topology, changing weights — the
+   alias_setup pattern). Ships with its dense-reference +
+   drop-removal-mutation certification.
+4. **Production gotchas, the still-new bits** — `python -X
+   faulthandler` for OOB-vs-teardown triage in seconds; `os._exit()`
+   after flush in test runners. Docs only.
+5. **Hogwild accumulation + factorized independent aggregation** — as
+   documented PATTERNS (with the rejected prefix-sum anti-pattern, 44%
+   error, as the counterexample), not as API: "safe for this
+   convergence structure" is not a library contract.
+
+Also declined: changing the `cache=True` default. The contributor's
+own adoption gate passed with the first-class `NUMBA_UTILS_CACHE=0`
+kill-switch, which they equate to their `NUMBA_NUM_THREADS=1` farm
+convention.
+
 ## Later / open questions
 
 - Dtype-generic `SparseSet`/`BitSet` universes beyond int64 indices —

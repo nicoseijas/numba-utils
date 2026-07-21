@@ -93,9 +93,11 @@ memory.
 Numerically hard statistics — only functions whose naive versions are
 *wrong* ([design](design/stats.md)): `logsumexp` and `softmax`
 (max-shifted; the direct formulas overflow `exp` beyond ~709; `softmax`
-takes `out=`), and `weighted_quantile` (inverted CDF — exact match
+takes `out=`), `weighted_quantile` (inverted CDF — exact match
 with `np.quantile(..., weights=..., method="inverted_cdf")`; rejects
-NaN values and NaN/negative weights up front).
+NaN values and NaN/negative weights up front), and `weighted_mc_mean`
+(uniform-subsample-then-weight, Philox-driven — the correct pattern
+for the reach² bug that `assert_no_reweight_bias` guards against).
 
 ### `numba_utils.random`
 
@@ -120,7 +122,8 @@ that drive the Fisher–Yates primitives from a Philox stream.
 - `assert_equivalent(reference, candidate, inputs)` — per-case array copies, failing case named, empty generators fail
 - `random_arrays` — generated cases plus the edges that break kernels
 - `assert_close`, `deterministic_rng` (pins all three RNG worlds)
-- Stochastic asserts: `assert_reproducible` (same seed → bit-identical) and `assert_converges` (different seeds → within N standard errors of the truth; the statistic is Student-t, real false-positive rates documented per `n_runs`). Both take `pass_seed=True` for counter-based (Philox) kernels, whose stream comes from an argument rather than global state.
+- Stochastic asserts: `assert_reproducible` (same seed → bit-identical) and `assert_converges` (different seeds → within N standard errors of the truth; the statistic is Student-t, real false-positive rates documented per `n_runs`). Both take `pass_seed=True` for counter-based (Philox) kernels, whose stream comes from an argument rather than global state. `assert_within_se` is the one-sample-set primitive underneath.
+- Certification: `mutation_screams` (deliberately break the kernel, assert the check FAILS — a check that cannot fail certifies nothing) and `assert_no_reweight_bias` (screams on the reach² double-weighting bug)
 
 Strategy: [testing.md](testing.md).
 

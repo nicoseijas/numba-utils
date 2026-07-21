@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Phase 4 opens: certification primitives contributed from a production
+PLO5 CFR solver (items 1–2 of the contribution roadmap).
+
+### Added
+
+- **testing** — `mutation_screams(fn, threshold=...)`: deliberately
+  break the kernel and assert the surrounding check would catch it —
+  a check that cannot fail certifies nothing. A non-finite deviation
+  counts as a scream.
+- **testing** — `assert_within_se(samples, target, k=3)`: the
+  one-sample-set primitive now shared by `assert_converges`; the SE is
+  measured from the samples, never assumed.
+- **testing / stats** — the reach² guard: `weighted_mc_mean` (uniform
+  subsample of the support, weighted by the TRUE weights — never both;
+  Philox-driven, exact when the support fits, njit-callable) and
+  `assert_no_reweight_bias` (feeds values correlated with strongly
+  skewed weights — the regime where double-weighting biases hardest —
+  and asserts the estimates stay within k measured SE of the exact
+  weighted mean). The bug it kills shipped twice in the contributing
+  solver: invisible at 0/1 reach, equities above 1 at mixed
+  frequencies.
+- Declined from the contribution proposal: `assert_vs_reference`
+  (already exists as `assert_equivalent`); docs now frame it as the
+  independent-reference certification step.
+
 ## [0.3.3] - 2026-07-21
 
 Rounds 3 and 4 of the adversarial audit (staleness reviewer, Philox

@@ -7,8 +7,11 @@ from numba_utils.testing import (
     assert_close,
     assert_converges,
     assert_equivalent,
+    assert_no_reweight_bias,
     assert_reproducible,
+    assert_within_se,
     deterministic_rng,
+    mutation_screams,
     random_arrays,
 )
 
@@ -207,3 +210,80 @@ class TestAssertConverges:
             return philox_uniform(key, 0)
 
         assert_reproducible(draw, seed=5, pass_seed=True)
+
+
+class TestAssertWithinSe:
+    def test_passes_within_band(self):
+        rng = np.random.default_rng(1)
+        samples = rng.normal(10.0, 0.5, 100)
+        mean, se = assert_within_se(samples, 10.0, k=3.0)
+        assert se > 0
+        assert abs(mean - 10.0) < 0.2
+
+    def test_fails_far_from_target(self):
+        rng = np.random.default_rng(2)
+        with pytest.raises(AssertionError):
+            assert_within_se(rng.normal(10.0, 0.1, 100), 20.0)
+
+    def test_zero_variance_and_validation(self):
+        with pytest.raises(AssertionError, match="identical"):
+            assert_within_se([0.4] * 5, 0.5)
+        assert assert_within_se([0.5] * 5, 0.5) == (0.5, 0.0)
+        with pytest.raises(ValueError):
+            assert_within_se([1.0, 2.0], 1.5)  # below the n >= 5 floor
+        with pytest.raises(AssertionError, match="non-finite"):
+            assert_within_se([1.0, np.nan, 1.0, 1.0, 1.0], 1.0)
+
+
+class TestMutationScreams:
+    def test_live_check_passes_and_returns_deviation(self):
+        def run(broken):
+            arr = np.arange(10.0)
+            return arr.sum() + (100.0 if broken else 0.0)
+
+        assert mutation_screams(run, threshold=1.0) == 100.0
+
+    def test_dead_check_raises(self):
+        # the mutation changes nothing observable -> the check this
+        # protects cannot fail -> must raise
+        def run(broken):
+            return np.arange(10.0).sum()
+
+        with pytest.raises(AssertionError, match="does NOT scream"):
+            mutation_screams(run, threshold=1.0)
+
+    def test_non_finite_deviation_counts_as_scream(self):
+        def run(broken):
+            return np.inf if broken else 1.0
+
+        assert not np.isfinite(mutation_screams(run, threshold=1.0))
+
+    def test_validation(self):
+        with pytest.raises(TypeError):
+            mutation_screams(42, threshold=1.0)
+        with pytest.raises(ValueError):
+            mutation_screams(lambda broken: 0.0, threshold=0.0)
+
+
+class TestAssertNoReweightBias:
+    def test_correct_estimator_passes(self):
+        from numba_utils.stats import weighted_mc_mean
+
+        def correct(values, weights, run_seed):
+            return weighted_mc_mean(values, weights, 200, run_seed, 0)
+
+        mean, se = assert_no_reweight_bias(correct)
+        assert se > 0
+
+    def test_reach_squared_estimator_screams(self):
+        # THE bug: subsample proportional to the weights, then weight
+        # again -> effective weight**2
+        def broken(values, weights, run_seed):
+            rng = np.random.default_rng(run_seed)
+            p = weights / weights.sum()
+            idx = rng.choice(values.shape[0], 200, replace=False, p=p)
+            w = weights[idx]
+            return float(np.sum(w * values[idx]) / np.sum(w))
+
+        with pytest.raises(AssertionError):
+            assert_no_reweight_bias(broken)
