@@ -60,8 +60,12 @@ jitclass-based, constructible and usable inside `@njit`
 (overwrite-oldest), `PriorityQueue` (binary min-heap), `BitSet`,
 `SparseSet` (O(1) add/discard/contains/clear), `ObjectPool` (slot
 allocator with double-release detection). Plus `counter` and
-`typed_defaultdict` over typed dicts. float64 values / int64 indices in
-v1; dtype-generic factories are on the roadmap.
+`typed_defaultdict` over typed dicts. `Stack`, `FixedQueue`,
+`RingBuffer` and `PriorityQueue` are float64 by default; the
+`stack_type` / `fixed_queue_type` / `ring_buffer_type` /
+`priority_queue_type` factories return the same containers specialized
+to any Numba scalar type, cached per type (`stack_type(float64) is
+Stack`). Index-domain containers stay int64.
 
 ### `numba_utils.random`
 

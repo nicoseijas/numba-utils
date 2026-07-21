@@ -2,7 +2,7 @@ import heapq
 
 import numpy as np
 import pytest
-from numba import float64, int64, njit
+from numba import complex128, float32, float64, int64, njit
 
 from numba_utils.collections import (
     BitSet,
@@ -13,6 +13,10 @@ from numba_utils.collections import (
     SparseSet,
     Stack,
     counter,
+    fixed_queue_type,
+    priority_queue_type,
+    ring_buffer_type,
+    stack_type,
     typed_defaultdict,
 )
 
@@ -283,3 +287,82 @@ class TestObjectPool:
         pool = ObjectPool(2)
         with pytest.raises(IndexError):
             pool.release(5)
+
+
+class TestDtypeGenericFactories:
+    def test_float64_specialization_is_the_default_class(self):
+        assert stack_type(float64) is Stack
+        assert fixed_queue_type(float64) is FixedQueue
+        assert ring_buffer_type(float64) is RingBuffer
+        assert priority_queue_type(float64) is PriorityQueue
+
+    def test_specializations_are_cached(self):
+        assert stack_type(int64) is stack_type(int64)
+        assert priority_queue_type(int64) is priority_queue_type(int64)
+
+    def test_int64_stack_preserves_values(self):
+        IntStack = stack_type(int64)
+        s = IntStack(3)
+        s.push(2**62)
+        # float64 storage would round 2**62 + 1; int64 must not.
+        s.push(2**62 + 1)
+        assert s.pop() == 2**62 + 1
+        assert s.pop() == 2**62
+
+    def test_int64_priority_queue_orders_exactly(self):
+        IntPQ = priority_queue_type(int64)
+        pq = IntPQ(8)
+        values = [5, -3, 2**62 + 1, 2**62, 0]
+        for v in values:
+            pq.push(v)
+        drained = [pq.pop_min() for _ in range(len(values))]
+        assert drained == sorted(values)
+
+    def test_float32_ring_buffer_dtype(self):
+        RB = ring_buffer_type(float32)
+        rb = RB(4)
+        for v in (1.5, 2.5, 3.5):
+            rb.push(v)
+        out = rb.to_array()
+        assert out.dtype == np.float32
+        np.testing.assert_array_equal(out, [1.5, 2.5, 3.5])
+
+    def test_fixed_queue_int_specialization_fifo(self):
+        IntQueue = fixed_queue_type(int64)
+        q = IntQueue(2)
+        q.push(10)
+        q.push(20)
+        assert q.pop() == 10
+        q.push(30)
+        assert q.pop() == 20
+        assert q.pop() == 30
+
+    def test_usable_inside_njit(self):
+        IntStack = stack_type(int64)
+
+        @njit
+        def roundtrip():
+            s = IntStack(4)
+            s.push(7)
+            s.push(9)
+            return s.pop() + s.pop()
+
+        assert roundtrip() == 16
+
+    def test_rejects_non_numba_types(self):
+        for factory in (
+            stack_type,
+            fixed_queue_type,
+            ring_buffer_type,
+            priority_queue_type,
+        ):
+            with pytest.raises(TypeError):
+                factory(np.int64)
+            with pytest.raises(TypeError):
+                factory(int)
+
+    def test_priority_queue_rejects_complex(self):
+        with pytest.raises(TypeError):
+            priority_queue_type(complex128)
+        # unordered containers accept complex
+        stack_type(complex128)

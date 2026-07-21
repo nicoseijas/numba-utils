@@ -19,13 +19,24 @@ the ergonomic difference compounds in user code. Cost accepted: jitclass
 methods are not cached on disk (first use pays JIT per process) — noted
 in the module docstring.
 
-## Why fixed dtypes (float64 values, int64 indices)
+## Why fixed dtypes first (float64 values, int64 indices)
 
 Generic jitclass factories increase API complexity and compilation cost.
 The fixed variant covers the large majority of numerical workloads
-(scores, priorities, entity ids). Generic variants are planned as a
-separate, additive API — shipping them first would have made every user
-pay the complexity for the minority need.
+(scores, priorities, entity ids) and shipped first — making every user
+pay the generic-API complexity up front would have served a minority
+need.
+
+The generic variants arrived later as the planned **additive** API: the
+`*_type(value_type)` factories return jitclass specializations built
+from a single implementation (the float64 defaults ARE
+`*_type(float64)` — one source of truth, `stack_type(float64) is
+Stack`). Specializations are cached per Numba type so repeated calls
+share one compiled class; each new type still pays its own JIT cost,
+which is inherent. `priority_queue_type` rejects complex types (no
+ordering); index-domain containers (`BitSet`, `SparseSet`,
+`ObjectPool`) stay int64 because their integers are indices, not
+values.
 
 ## Why `counter` is a function, not a Counter class
 

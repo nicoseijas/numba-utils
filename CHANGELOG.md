@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Phase 2 opens: dtype-generic collections.
+
+### Added
+
+- **collections** — dtype-generic factories `stack_type`,
+  `fixed_queue_type`, `ring_buffer_type` and `priority_queue_type`:
+  each returns the container specialized to any Numba scalar type
+  (`stack_type(int64)`, `priority_queue_type(float32)`, ...), cached
+  per type. The float64 classes are now the factories' own
+  specializations (`stack_type(float64) is Stack`) — one
+  implementation, no behavior change. `priority_queue_type` rejects
+  complex types (no ordering).
+
+### Changed
+
+- ROADMAP.md rewritten: Phase 1 closed as shipped (0.1.0–0.1.2, with
+  its scope decisions recorded), Phase 2 defined — dtype-generic
+  collections, `stable_argsort`/`lexsort`, a `graph/` module, and the
+  numerics that pass the identity filter (`logsumexp`, `softmax`,
+  `weighted_quantile`).
+
 ## [0.1.2] - 2026-07-21
 
 Second audit round: two out-of-bounds-write fixes, one crash fix in a
