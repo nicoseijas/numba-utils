@@ -167,11 +167,12 @@ of the two children to swap with — the step that keeps it a min-heap.
 - **Fixed capacity, zero allocation after construction.** The array is
   sized once in `__init__`. Inside the hot loop there is no allocation at
   all — the reason to be in compiled code in the first place.
-- **Fixed dtype (`float64`) on purpose.** A generic version is planned as
-  a separate, additive API. Shipping generics first would make every user
-  pay compilation and API complexity for a minority need. `float64`
-  priorities cover scores, costs, timestamps, and distances — most of
-  what a heap actually orders.
+- **Fixed dtype (`float64`) on purpose.** `float64` priorities cover
+  scores, costs, timestamps, and distances — most of what a heap
+  actually orders. The generic version shipped later as the additive
+  `priority_queue_type(value_type)` factory (0.2.0), with the float64
+  class as its cached specialization — nobody pays for the generality
+  who doesn't use it.
 - **Want a max-heap?** Push negated values. One obvious container, not a
   constructor flag.
 - **The guards are load-bearing.** `push`-when-full and

@@ -78,4 +78,7 @@ nav:
   - Articles:
       - Why most Numba benchmarks are wrong: articles/why-most-numba-benchmarks-are-wrong.md
       - Building a Priority Queue inside @njit: articles/priority-queue-inside-njit.md
+      - "Weighted sampling in O(1): the alias method": articles/weighted-sampling-alias-method.md
+      - Your coverage tool can't see your fastest code: articles/coverage-cant-see-your-kernels.md
+      - Five lessons from running Numba in production: articles/numba-in-production-five-lessons.md
   - Contributing: contributing.md
