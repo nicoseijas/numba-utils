@@ -85,22 +85,44 @@ every cached function fails with `RuntimeError: cannot cache function
 wholesale with that error, copy the tree to a short real path (or set
 `NUMBA_UTILS_CACHE=0`) before concluding anything about the code.
 
-## Upgrading numba-utils: clear the cache
+## Upgrading numba-utils: the stale-binary window
 
-Numba's on-disk cache key does not include the numba-utils version.
-After upgrading, a `__pycache__` left over from the previous version
-makes a process LOAD the old cached binary instead of recompiling — so
-behavior changes that only take effect at compile time (a new
-dtype-validation gate, a changed kernel) silently do not apply until
-the cache is rebuilt. The old binary keeps running; nothing warns.
+Numba invalidates a cached binary when the source file's
+`(mtime, size)` stamp changes — not by content, and not by package
+version. What that means in practice:
 
-After upgrading, clear `__pycache__` (or run once with
-`NUMBA_UTILS_CACHE=0`) so the new version recompiles. This matters most
-for validation gates added in a release — a runtime check always runs,
-but a compile-time one only runs when Numba actually recompiles.
+- **A plain `pip install --upgrade` is safe.** pip rewrites the `.py`
+  files, so the mtime is fresh and the old binaries are invalidated.
+- **Deployments that PRESERVE mtime are the dangerous case.** `docker
+  COPY` (build-context files keep their timestamps), `tar -x`,
+  `rsync -a`, `cp -p`: if the new file's size happens to match the old
+  one's, the stamp is identical and the process silently keeps
+  LOADING the binary compiled from the previous version. A
+  compile-time gate added in the release (a new dtype-validation
+  check, a changed kernel) never runs; nothing warns. This scenario
+  has been reproduced, not just theorized.
 
-`diagnostics.check(fn)` warns when a function has caching enabled and
-tells you exactly this.
+Two fixes:
+
+- **Hygiene:** clear `__pycache__` on deploy (or run once with
+  `NUMBA_UTILS_CACHE=0`). Works, but every deploy has to remember it.
+- **Structural:** stamp by content instead of `(mtime, size)`, via
+  Numba's official locator hook, set before the first `numba` import:
+
+  ```
+  NUMBA_CACHE_LOCATOR_CLASSES=numba_utils.cache_locator.ContentHashLocator
+  ```
+
+  `numba_utils.cache_locator.ContentHashLocator` stamps sources with a
+  SHA-256 of their bytes, so a changed file always invalidates —
+  regardless of what the deployment did to timestamps. Caveats in the
+  module docstring: the variable replaces Numba's locator chain
+  process-wide (append Numba's own locators by bare name if you need
+  zip-import fallbacks), and it costs one hash per cached function per
+  process.
+
+Note `diagnostics.check(fn)` flags that caching is enabled (the
+crash gotcha above) — it does not and cannot detect a stale binary.
 
 ## Trade-off summary
 
