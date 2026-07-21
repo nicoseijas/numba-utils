@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-21
+
 Phase 3: Monte Carlo primitives, driven by the first real-user
 feedback (a production MC equity engine evaluating the library).
+Additive only — no breaking changes; upgrading from 0.2.0 is a
+drop-in.
 
 ### Added
 
