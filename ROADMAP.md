@@ -52,8 +52,13 @@ In value order:
    `priority_queue_type`, returning cached jitclass specializations
    (`stack_type(float64) is Stack`). The float64/int64 defaults stay —
    the generic API is additive, nobody pays for it who doesn't use it.
-2. **`stable_argsort`, `lexsort`** — the two algorithms pending from
-   Phase 1. Numba lacks a stable argsort; lexsort composes on top.
+2. **`stable_argsort`, `lexsort`** ✅ — the two algorithms pending from
+   Phase 1. Corrected premise: Numba DOES have a stable argsort
+   (`kind="mergesort"`; the `kind="stable"` spelling doesn't compile) —
+   the real gap was `np.lexsort`, which Numba doesn't implement at all.
+   Shipped as an honest alias plus the composed lexsort; both lose to
+   NumPy from Python (BENCHMARKS.md explains why) and exist for inside-
+   `@njit` use.
 3. **`graph/` module** — structures that are genuinely painful in
    nopython mode: `UnionFind` (jitclass), BFS/DFS over CSR adjacency,
    topological sort, Dijkstra (on the existing `PriorityQueue`).
@@ -71,4 +76,7 @@ when NOT to use it, and NaN/overflow behavior stated or validated.
   no demand yet; index dtypes are rarely the bottleneck.
 - `parallel/` additions (e.g. parallel sort) — only with a benchmark
   that beats NumPy's SIMD sort by enough to matter.
+- Radix-based `stable_argsort` fast path for integer keys — would turn
+  the current honest loss vs NumPy's stable (radix) sort into a win;
+  only worth it if profiling shows argsort inside kernels matters.
 - CUDA variants — out of scope until a real workload pulls them in.

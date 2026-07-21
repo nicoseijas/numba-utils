@@ -11,6 +11,13 @@ Phase 2 opens: dtype-generic collections.
 
 ### Added
 
+- **algorithms** — `stable_argsort` and `lexsort`. `stable_argsort` is
+  the honest alias for `np.argsort(kind="mergesort")` — the stable kind
+  Numba actually compiles (`kind="stable"` does not). `lexsort` is
+  `np.lexsort` for nopython code, which Numba doesn't implement:
+  a 2-D array of keys, last row primary (NumPy's convention), results
+  identical to `np.lexsort`. Both lose to NumPy from Python
+  (BENCHMARKS.md explains why) and exist for inside-`@njit` use.
 - **collections** — dtype-generic factories `stack_type`,
   `fixed_queue_type`, `ring_buffer_type` and `priority_queue_type`:
   each returns the container specialized to any Numba scalar type

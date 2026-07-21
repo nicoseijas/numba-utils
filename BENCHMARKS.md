@@ -15,6 +15,15 @@ Seed 42, 11 runs after 2 warmup runs, mean times.
 | radix_sort range<2^24 (5,000,000 i64) | 52.19 ms | 40.17 ms | 1.30x |
 | counting_sort range<1000 (5,000,000 i64) | 27.05 ms | 13.87 ms | 1.95x |
 | unique_sorted (5,000,000 i64, sorted) | 27.75 ms | 1.63 ms | 16.99x |
+| stable_argsort (5,000,000 i64, many ties) | 254.99 ms | 1010.74 ms | 0.25x |
+| lexsort 3 keys (1,000,000 i64) | 72.82 ms | 190.13 ms | 0.38x |
+
+`stable_argsort` and `lexsort` lose from Python by design and we ship
+them anyway: NumPy's `kind="stable"` uses an O(n) radix sort for
+integers, while Numba's only stable kind is mergesort. Their value is
+availability INSIDE `@njit` — `np.lexsort` does not exist in nopython
+code at all, and calling out to Python from a jitted loop costs far
+more than the difference above.
 
 ## Random & collections
 

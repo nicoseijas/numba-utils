@@ -20,8 +20,10 @@ from numba_utils import (
     cumulative_sum,
     fast_clip,
     histogram,
+    lexsort,
     radix_sort,
     rolling_mean,
+    stable_argsort,
     topk,
     unique_sorted,
 )
@@ -53,6 +55,10 @@ def np_histogram_counts(arr, bins, lo, hi):
     return np.histogram(arr, bins=bins, range=(lo, hi))[0]
 
 
+def np_stable_argsort(arr):
+    return np.argsort(arr, kind="stable")
+
+
 def main() -> None:
     rng = np.random.default_rng(SEED)
     floats = rng.normal(0.0, 1.0, N_FLOAT)
@@ -60,6 +66,7 @@ def main() -> None:
     ints_narrow = rng.integers(0, 2**24, N_INT)
     ints_tiny_range = rng.integers(0, 1000, N_INT)
     sorted_ints = np.sort(rng.integers(0, 10_000, N_INT))
+    lex_keys = rng.integers(0, 10, (3, 1_000_000))
 
     cases = [
         (
@@ -97,6 +104,14 @@ def main() -> None:
         (
             f"unique_sorted ({N_INT:,} i64, sorted)",
             np.unique, unique_sorted, (sorted_ints,),
+        ),
+        (
+            f"stable_argsort ({N_INT:,} i64, many ties)",
+            np_stable_argsort, stable_argsort, (ints_tiny_range,),
+        ),
+        (
+            "lexsort 3 keys (1,000,000 i64)",
+            np.lexsort, lexsort, (lex_keys,),
         ),
     ]
 

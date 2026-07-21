@@ -27,7 +27,7 @@ verbatim.
 
 - Selection: `nth_element` (in-place, C++ semantics), `quickselect`, `fast_argpartition`
 - `topk` — heap path for small k, quickselect for large; `argmax2` (index AND value)
-- Sorts: `insertion_sort`, `partial_sort` (in-place); `counting_sort`, `radix_sort` (new array; integer dtypes, honest loss vs NumPy's SIMD sort on full-range keys)
+- Sorts: `insertion_sort`, `partial_sort` (in-place); `counting_sort`, `radix_sort` (new array; integer dtypes, honest loss vs NumPy's SIMD sort on full-range keys); `stable_argsort` (the stable-argsort spelling that works in nopython), `lexsort` (`np.lexsort` for `@njit` — Numba doesn't implement it; takes a 2-D array, last row is the primary key)
 
 ## Performance
 

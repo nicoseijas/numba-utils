@@ -5,6 +5,8 @@ from numba import njit
 from numba_utils.algorithms import (
     argmax2,
     counting_sort,
+    lexsort,
+    stable_argsort,
     fast_argpartition,
     insertion_sort,
     nth_element,
@@ -184,6 +186,72 @@ class TestCountingSort:
         ):
             with pytest.raises(ValueError):
                 counting_sort(arr)
+
+
+class TestStableArgsort:
+    def test_matches_numpy_stable(self):
+        arr = RNG.integers(0, 50, 10_000).astype(np.int64)
+        np.testing.assert_array_equal(
+            stable_argsort(arr), np.argsort(arr, kind="stable")
+        )
+
+    def test_ties_keep_input_order(self):
+        arr = np.array([2.0, 1.0, 2.0, 1.0, 2.0])
+        np.testing.assert_array_equal(stable_argsort(arr), [1, 3, 0, 2, 4])
+
+    def test_nan_sorts_last(self):
+        arr = np.array([1.0, np.nan, 0.5, np.nan, 2.0])
+        np.testing.assert_array_equal(
+            stable_argsort(arr), np.argsort(arr, kind="stable")
+        )
+
+    def test_empty(self):
+        assert stable_argsort(np.empty(0)).shape == (0,)
+
+    def test_callable_from_jitted_code(self):
+        @njit
+        def first_of_sorted(arr):
+            return arr[stable_argsort(arr)[0]]
+
+        assert first_of_sorted(np.array([3.0, 1.0, 2.0])) == 1.0
+
+
+class TestLexsort:
+    def test_matches_numpy_ints(self):
+        keys = RNG.integers(0, 10, (3, 5_000)).astype(np.int64)
+        np.testing.assert_array_equal(lexsort(keys), np.lexsort(keys))
+
+    def test_matches_numpy_floats_with_ties(self):
+        keys = np.round(RNG.normal(0.0, 1.0, (2, 5_000)), 1)
+        np.testing.assert_array_equal(lexsort(keys), np.lexsort(keys))
+
+    def test_last_row_is_primary(self):
+        secondary = np.array([1, 0, 1, 0], dtype=np.int64)
+        primary = np.array([1, 1, 0, 0], dtype=np.int64)
+        keys = np.stack((secondary, primary))
+        # primary ascending, ties broken by secondary ascending
+        np.testing.assert_array_equal(lexsort(keys), [3, 2, 1, 0])
+
+    def test_single_key_equals_stable_argsort(self):
+        arr = RNG.integers(0, 5, 1_000).astype(np.int64)
+        np.testing.assert_array_equal(
+            lexsort(arr.reshape(1, -1)), stable_argsort(arr)
+        )
+
+    def test_empty_columns(self):
+        assert lexsort(np.empty((2, 0))).shape == (0,)
+
+    def test_zero_keys_raises(self):
+        with pytest.raises(ValueError):
+            lexsort(np.empty((0, 4)))
+
+    def test_callable_from_jitted_code(self):
+        @njit
+        def winner(keys):
+            return lexsort(keys)[0]
+
+        keys = np.array([[3, 1, 2], [1, 1, 0]], dtype=np.int64)
+        assert winner(keys) == np.lexsort(keys)[0]
 
 
 class TestRadixSort:

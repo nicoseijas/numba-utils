@@ -7,10 +7,12 @@ from numba_utils.algorithms import (
     counting_sort,
     fast_argpartition,
     insertion_sort,
+    lexsort,
     nth_element,
     partial_sort,
     quickselect,
     radix_sort,
+    stable_argsort,
     topk,
 )
 from numba_utils.arrays import (
@@ -113,6 +115,7 @@ __all__ = [
     "fixed_queue_type",
     "histogram",
     "insertion_sort",
+    "lexsort",
     "lower_bound",
     "njit_fast",
     "njit_parallel",
@@ -134,6 +137,7 @@ __all__ = [
     "rolling_sum",
     "seed",
     "shuffle",
+    "stable_argsort",
     "stack_type",
     "testing",
     "topk",

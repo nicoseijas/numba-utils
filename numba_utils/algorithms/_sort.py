@@ -1,9 +1,11 @@
-"""Sorting: insertion sort, partial sort, counting sort, radix sort.
+"""Sorting: insertion/partial/counting/radix sort, stable argsort, lexsort.
 
 Mutation contract: ``insertion_sort`` and ``partial_sort`` work IN PLACE
 (zero allocation — that's their reason to exist) and return the array for
 chaining. ``counting_sort`` and ``radix_sort`` allocate scratch space
 inherently, so they return a NEW array and leave the input untouched.
+``stable_argsort`` and ``lexsort`` return index arrays; the input is
+never modified.
 """
 
 from __future__ import annotations
@@ -169,3 +171,48 @@ def radix_sort(arr):
             cp[digit] += 1
         a, b = b, a
     return a
+
+
+@cached_njit
+def stable_argsort(arr):
+    """Indices that sort 1-D ``arr`` ascending, ties keeping input order.
+
+    Honest positioning: this is ``np.argsort(arr, kind="mergesort")``,
+    which IS supported and stable inside nopython code — but the
+    ``kind="stable"`` spelling is not, and nothing in Numba's docs says
+    which kinds are. This function does that remembering for you and is
+    the building block of :func:`lexsort`. NaN sorts last, like NumPy.
+
+    Complexity: O(n log n). Memory: O(n).
+    """
+    return np.argsort(arr, kind="mergesort")
+
+
+@cached_njit
+def lexsort(keys):
+    """Indices sorting by multiple keys — ``np.lexsort`` for nopython code.
+
+    Numba does not implement ``np.lexsort``; this composes stable
+    argsorts, one pass per key. ``keys`` is a 2-D array where each ROW
+    is a key and the LAST row is the primary key (NumPy's convention),
+    so results match ``np.lexsort(keys)`` exactly. Unlike NumPy's, it
+    takes one uniform-dtype array, not a tuple — stack heterogeneous
+    keys yourself, or chain :func:`stable_argsort` passes.
+
+    Complexity: O(k · n log n) for k keys of length n. Memory: O(n).
+    """
+    n_keys = keys.shape[0]
+    n = keys.shape[1]
+    if n_keys == 0:
+        raise ValueError("lexsort: need at least one key")
+    order = np.arange(n)
+    permuted = np.empty(n, keys.dtype)
+    for k in range(n_keys):
+        for i in range(n):
+            permuted[i] = keys[k, order[i]]
+        sub = np.argsort(permuted, kind="mergesort")
+        reordered = np.empty(n, np.int64)
+        for i in range(n):
+            reordered[i] = order[sub[i]]
+        order = reordered
+    return order
