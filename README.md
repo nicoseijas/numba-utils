@@ -194,6 +194,12 @@ what comes next is user-driven — open an issue.
       fixed and released the same day it was reported: memory-safety
       hardening, contract corrections, ~150 attack vectors
       ([CHANGELOG.md](https://github.com/nicoseijas/numba-utils/blob/main/CHANGELOG.md))
+- [x] Phase 4 (0.4.0) — contributions from a production CFR solver:
+      `disjoint_rank_aggregate` (reach-weighted all-pairs comparison
+      with exact set-disjointness by inclusion–exclusion), the
+      certification primitives (`mutation_screams`, `assert_within_se`,
+      the reach² guard), and documented parallel patterns (Hogwild,
+      factorized aggregation)
 
 ## Development
 

@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Phase 4 opens: certification primitives contributed from a production
-PLO5 CFR solver (items 1–2 of the contribution roadmap).
+## [0.4.0] - 2026-07-21
+
+Phase 4, complete: contributions from a production PLO5 CFR solver.
+The flagship `disjoint_rank_aggregate` kernel, certification testing
+primitives, the reach² guard, and two documented parallel patterns —
+plus the fixes from the 0.3.3 audit verdict. Additive; the one
+behavior change (`counting_sort`'s range guard) is a relaxation, not a
+restriction.
 
 ### Fixed
 

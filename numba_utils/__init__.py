@@ -104,7 +104,7 @@ from numba_utils.random import (
     weighted_sampling,
 )
 
-__version__ = "0.3.3.post1"
+__version__ = "0.4.0"
 
 __all__ = [
     "BenchmarkResult",
