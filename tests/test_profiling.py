@@ -154,3 +154,19 @@ class TestCompare:
     def test_non_callable_raises(self):
         with pytest.raises(TypeError):
             compare(42, sorted)
+
+
+class TestSpeedupDegenerateTimings:
+    def test_zero_second_mean_gives_inf_not_crash(self):
+        # perf_counter has finite resolution: a trivial kernel can
+        # time as 0.0 on every sample (especially on Windows), and
+        # speedup/summary() must survive that, not ZeroDivisionError
+        from numba_utils.profiling import ComparisonResult, TimingStats
+
+        zero = TimingStats("b", 3, 0.0, 0.0, 0.0, 0.0, 0.0)
+        slow = TimingStats("a", 3, 1e-3, 1e-3, 0.0, 1e-3, 1e-3)
+        result = ComparisonResult(first=slow, second=zero)
+        assert result.speedup == float("inf")
+        assert "inf" in result.summary()
+        both_zero = ComparisonResult(first=zero, second=zero)
+        assert np.isnan(both_zero.speedup)

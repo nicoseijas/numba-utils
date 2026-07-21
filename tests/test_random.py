@@ -400,3 +400,50 @@ class TestPhiloxUniformsOutShape:
 
         with pytest.raises(TypingError):
             philox_uniforms(1, 0, 4, np.empty((4, 1)))
+
+
+class Test2DInputsRejected:
+    def test_swap_based_functions_reject_2d(self):
+        # On a 2-D array the element swap works on row VIEWS, which
+        # alias: rows get silently duplicated — a deck dealing the
+        # same card twice, plausible to the eye. Must raise instead.
+        deck2d = np.arange(20, dtype=np.int64).reshape(10, 2)
+        with pytest.raises(ValueError):
+            shuffle(deck2d.copy())
+        with pytest.raises(ValueError):
+            partial_shuffle(deck2d.copy(), 4)
+        with pytest.raises(ValueError):
+            philox_partial_shuffle(deck2d.copy(), 4, 7, 0)
+        with pytest.raises(ValueError):
+            sample_without_replacement(deck2d, 4)
+        with pytest.raises(ValueError):
+            philox_sample_without_replacement(deck2d, 4, 7, 0)
+
+
+class TestPhiloxUniformityOfPrefixes:
+    def test_ordered_pairs_equifrequent(self):
+        # stronger than the first-slot check: all 20 ordered pairs of
+        # (n=5, k=2) must be equifrequent; would catch a biased or
+        # mis-indexed step beyond the first swap
+        counts = {}
+        for it in range(20_000):
+            arr = np.arange(5, dtype=np.int64)
+            philox_partial_shuffle(arr, 2, 31, it * 2)
+            pair = (int(arr[0]), int(arr[1]))
+            counts[pair] = counts.get(pair, 0) + 1
+        assert len(counts) == 20
+        # expected 1000 per pair, sd ~31; +/-150 is ~5 sigma per cell
+        assert min(counts.values()) > 850
+        assert max(counts.values()) < 1150
+
+
+class TestPhiloxUniformsWordOverlap:
+    def test_overlap_with_randint_is_pinned(self):
+        # philox_uniforms consumes ALL FOUR block words: its element
+        # [1] is the same word (x1) philox_randint uses at that
+        # counter. The counter space is global across philox_* — this
+        # test keeps the overlap visible (module docstring tells users
+        # to partition counters per purpose).
+        for c in range(20):
+            u1 = philox_uniforms(9, c, 4)[1]
+            assert philox_randint(9, c, 1 << 53) == int(u1 * (1 << 53))

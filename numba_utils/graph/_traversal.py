@@ -127,6 +127,13 @@ def topological_sort(indptr, indices):
         count += 1
         for p in range(indptr[u], indptr[u + 1]):
             v = indices[p]
+            # Same in-loop guard as bfs/dijkstra (defense in depth on
+            # top of the upfront passes): an unchecked v here would be
+            # an arbitrary write through indegree/queue.
+            if v < 0 or v >= n:
+                raise ValueError(
+                    "topological_sort: indices contains an out-of-range node"
+                )
             indegree[v] -= 1
             if indegree[v] == 0:
                 queue[tail] = v

@@ -78,6 +78,13 @@ processes rather than fanning out a process per task.
 Hygiene for affected machines: clear `__pycache__` before runs, and
 avoid chaining multiple Numba-heavy script invocations in one shell.
 
+A separate cache gotcha on Windows: running from long, mapped or
+otherwise unusual paths can break Numba's cache locator entirely —
+every cached function fails with `RuntimeError: cannot cache function
+... no locator available`. If a suite that passes from the repo fails
+wholesale with that error, copy the tree to a short real path (or set
+`NUMBA_UTILS_CACHE=0`) before concluding anything about the code.
+
 `diagnostics.check(fn)` warns when a function has caching enabled and
 tells you exactly this.
 

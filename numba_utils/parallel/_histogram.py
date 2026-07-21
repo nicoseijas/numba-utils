@@ -32,16 +32,32 @@ def parallel_histogram(arr, bins, lo, hi):
         return histogram(arr, bins, lo, hi)
     if bins < 1:
         raise ValueError("parallel_histogram: bins must be >= 1")
+    # Cap BEFORE the padding arithmetic: near 2**63 the (bins + 7)
+    # rounding overflows int64 into a negative dimension, which the
+    # parallel lowering turns into an out-of-bounds write instead of a
+    # clean allocation error. 2**30 int64 rows are already 8 GiB —
+    # anything larger is a mistake, rejected loudly.
+    if bins > (1 << 30):
+        raise ValueError("parallel_histogram: bins too large (> 2**30)")
     if not (np.isfinite(lo) and np.isfinite(hi)):
         raise ValueError("parallel_histogram: lo and hi must be finite")
     if not lo < hi:
         raise ValueError("parallel_histogram: lo must be < hi")
+    span = hi - lo
+    scale = bins / span
+    # See histogram: an overflowing span (scale 0) or a subnormal span
+    # (scale inf) cannot bin by scaling — every count would silently
+    # land in bin 0. Fail loudly instead.
+    if not (np.isfinite(span) and np.isfinite(scale)):
+        raise ValueError(
+            "parallel_histogram: hi - lo overflows or is too small "
+            "for this many bins"
+        )
     n_threads = get_num_threads()
     # Pad each thread's row to a multiple of 8 int64 (= 64 bytes) so two
     # threads never share a cache line.
     padded = ((bins + 7) // 8) * 8
     private = np.zeros((n_threads, padded), np.int64)
-    scale = bins / (hi - lo)
     chunk = (n + n_threads - 1) // n_threads
     for t in prange(n_threads):
         start = t * chunk

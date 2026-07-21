@@ -42,6 +42,12 @@ class ComparisonResult:
 
     @property
     def speedup(self) -> float:
+        """``first.mean / second.mean``. ``inf`` when the second mean
+        is 0.0 (reachable: ``perf_counter`` has finite resolution, and
+        a trivial kernel can time as 0.0 on every sample — especially
+        on Windows), ``nan`` when both are 0."""
+        if self.second.mean == 0.0:
+            return float("inf") if self.first.mean > 0.0 else float("nan")
         return self.first.mean / self.second.mean
 
     def summary(self) -> str:

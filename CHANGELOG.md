@@ -7,6 +7,104 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-07-21
+
+Rounds 3 and 4 of the adversarial audit (staleness reviewer, Philox
+sampling auditor, fix-attacker, regressions reviewer — the audit's
+closing verdict). The recurring lesson this release encodes: the
+validation standard must apply per LIBRARY, not per file — the NaN
+trap solved carefully in `histogram` was absent from `graph/`'s
+validator written the same day.
+
+### Fixed (round 4 — attacks on the 0.3.2 fixes)
+
+- **decorators** — the boundscheck/cache invariant moved to the layer
+  where ALL option paths converge: `cached_njit(boundscheck=True)`
+  (any decorator, kwarg path) bypassed the dev-mode lock and produced
+  a cached boundscheck binary — reintroducing the bidirectional cache
+  poisoning 0.3.2 declared fixed. Now any resolved
+  `boundscheck=True` forces `cache=False`, after defaults, kwargs and
+  global overrides alike.
+- **graph** — new SIGSEGV closed: a float64 `indptr` containing NaN
+  passed `check_csr` (NaN fails every comparison, so `v < prev` never
+  fired) and drove `range(1.0, nan)` — 2^31 iterations of arbitrary
+  writes in `topological_sort`. Three lateral fixes: integer-dtype
+  gate on `indptr`/`indices` at compile time (`np.zeros` default is
+  float64 — arriving there by accident is easy), the monotonicity
+  test inverted to `not (v >= prev)` (the histogram NaN lesson,
+  applied to the sibling module), and the missing in-loop index guard
+  added to `topological_sort` — the only one of the four that lacked
+  it.
+- **parallel** — new SIGSEGV closed: `parallel_histogram` with
+  `bins ~ 2**63` overflowed the cache-line padding arithmetic into a
+  negative dimension that parallel lowering turned into out-of-bounds
+  writes. `bins > 2**30` (already 8 GiB of counts) now raises before
+  the arithmetic.
+- **arrays / parallel** — the 0.3.2 histogram clamp was memory-safe
+  but silently WRONG in the degenerate regimes: an overflowing
+  `hi - lo` (scale 0) or a subnormal one (scale inf) put every value
+  in bin 0 with `counts.sum()` still matching n — undetectable
+  downstream, and the realistic nearly-constant-data trigger fell in
+  the second regime. Both now raise (`hi - lo` overflows or is too
+  small for this many bins); NumPy refuses the first regime too. The
+  clamp stays as the last line of memory safety.
+- **algorithms** — 0.3.2 regression: the integer gate rejected bool
+  arrays, which sorted fine in 0.3.0 (`np.int64(bool)` is exact).
+  Boolean is accepted again.
+- **random** — the `philox_uniforms`/`philox_randint` word overlap
+  (found independently by two reviewers, corr = 1.0) is now pinned by
+  a test so the shared counter space stays VISIBLE, not just
+  documented.
+- Honest-costs note the 0.3.2 changelog owed: `check_csr` itself is
+  free (0.04–0.8%), but the per-edge index guard inside the hot loops
+  costs ~7% in bfs — it is also what saves bfs/dijkstra when the
+  structural check is bypassed.
+
+### Fixed (round 3)
+
+- **random** — `shuffle`, `partial_shuffle` and
+  `philox_partial_shuffle` reject non-1-D input. On a 2-D array the
+  element swap operates on row VIEWS, which alias: rows get silently
+  DUPLICATED instead of exchanged — a deck sampling the same card
+  twice, plausible to the eye, no exception (reproduced). The
+  `*sample_without_replacement` wrappers inherit the guard.
+- **profiling** — `compile_time` detects a warm on-disk cache: with
+  `cache=True` and a populated `__pycache__` the first call loads the
+  binary instead of compiling (measured ~40x smaller than a true cold
+  compile) — a `RuntimeWarning` now says the number is cache-load
+  time, and the docstring documents the regime.
+- **profiling** — `ComparisonResult.speedup` (and therefore
+  `summary()`) no longer raises `ZeroDivisionError` when the second
+  mean is 0.0 — reachable with trivial kernels under `perf_counter`'s
+  finite resolution, especially on Windows. Returns `inf` (or `nan`
+  when both means are 0), documented.
+- **algorithms** — `counting_sort` guards its O(range) term relative
+  to n: `range > 16n + 4096` now raises the "use radix_sort" error
+  (**behavior change**: previously 2 elements spanning 2**27 silently
+  allocated a 1 GiB counts array and scanned 134M entries).
+- **random** — corrected the 0.3.1 `philox_uniforms` docstring
+  regression: a float32 `out=` buffer does NOT silently truncate — it
+  fails loudly at compile time (type unification), like non-1-D
+  buffers. The old text asserted the opposite; the behavior is now
+  pinned by a test.
+- **random** — Philox module docstring documents that the counter
+  space is GLOBAL across all `philox_*` functions (`philox_uniforms`
+  consumes all four block words, overlapping `philox_uniform` and
+  `philox_randint` at equal counters — measured correlation ~1.0,
+  invisible to marginal uniformity tests) and that counters wrap
+  modulo 2**64 silently. Partition counters once per key.
+- **diagnostics** — `check()` no longer shadows the module-level
+  `warnings` import with a local list.
+
+### Changed
+
+- docs/numba-cache.md documents the Windows long-path cache-locator
+  failure mode (`cannot cache function ... no locator available`) —
+  it can fail an entire suite from a mapped path and mislead audits.
+- Stronger uniformity test for `philox_partial_shuffle`: all 20
+  ordered pairs of (n=5, k=2) equifrequent, catching bias or
+  mis-indexing beyond the first swap.
+
 ## [0.3.2] - 2026-07-21
 
 Full-audit follow-up (three adversarial reviewers over the whole

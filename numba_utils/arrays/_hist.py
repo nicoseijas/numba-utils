@@ -47,8 +47,21 @@ def histogram(arr, bins, lo, hi):
         raise ValueError("histogram: lo and hi must be finite")
     if not lo < hi:
         raise ValueError("histogram: lo must be < hi")
+    span = hi - lo
+    scale = bins / span
+    # Two degenerate regimes produce silently FALSE counts if allowed
+    # through: a span that overflows to inf (finite lo, hi near
+    # +/-1e308) makes scale 0, and a subnormal span makes scale inf —
+    # in both, every value lands in bin 0 and counts.sum() still
+    # matches n, so nothing downstream can tell. NumPy refuses the
+    # first regime too. Fail loudly; the realistic trigger is
+    # histogram(a, bins, a.min(), a.max()) on nearly-constant data.
+    if not (np.isfinite(span) and np.isfinite(scale)):
+        raise ValueError(
+            "histogram: hi - lo overflows or is too small for this "
+            "many bins"
+        )
     counts = np.zeros(bins, np.int64)
-    scale = bins / (hi - lo)
     for i in range(arr.shape[0]):
         x = arr[i]
         # Inverted-range test so NaN (which fails every comparison) is
@@ -58,11 +71,9 @@ def histogram(arr, bins, lo, hi):
         idx = int((x - lo) * scale)
         if idx >= bins:
             idx = bins - 1
-        # A subnormal hi - lo degenerates scale to inf, and 0 * inf is
-        # NaN -> INT64_MIN even for in-range x. The symmetric clamp
-        # keeps every write in bounds no matter how the arithmetic
-        # degenerates (including a global fastmath override weakening
-        # the NaN filter above).
+        # Degenerate scales are rejected above; the symmetric clamp
+        # stays as the last line of memory safety (e.g. a global
+        # fastmath override weakening the NaN filter above).
         if idx < 0:
             idx = 0
         counts[idx] += 1

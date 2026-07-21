@@ -201,15 +201,22 @@ class TestUniqueSorted:
 
 
 class TestHistogramDegenerateInputs:
-    def test_histogram_degenerate_scale_stays_in_bounds(self):
-        # A subnormal hi - lo degenerates scale to inf and 0 * inf is
-        # NaN -> int(NaN) = INT64_MIN for IN-RANGE x — the realistic
-        # trigger is histogram(a, bins, a.min(), a.max()) on nearly-
-        # constant data. Every element must land in a valid bin.
+    def test_subnormal_span_raises_not_false_counts(self):
+        # A subnormal hi - lo makes scale inf: binning by scaling is
+        # impossible and every count would silently land in bin 0 with
+        # counts.sum() still matching n — undetectable downstream. The
+        # realistic trigger is histogram(a, bins, a.min(), a.max()) on
+        # nearly-constant data; it must fail loudly, not lie.
         arr = np.zeros(1000)
         arr[500] = 5e-324  # subnormal range
-        counts = histogram(arr, 64, arr.min(), arr.max())
-        assert counts.sum() == 1000
+        with pytest.raises(ValueError):
+            histogram(arr, 64, arr.min(), arr.max())
+
+    def test_overflowing_span_raises(self):
+        # finite lo/hi whose difference overflows to inf -> scale 0 ->
+        # everything in bin 0. NumPy refuses this regime too.
+        with pytest.raises(ValueError):
+            histogram(np.array([0.0]), 10, -1e308, 1e308)
 
     def test_histogram_non_finite_bounds_raise(self):
         with pytest.raises(ValueError):

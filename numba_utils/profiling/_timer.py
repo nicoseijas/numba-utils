@@ -8,11 +8,19 @@ in the wild (see docs/benchmarking.md).
 
 from __future__ import annotations
 
+import warnings as _warnings
 from dataclasses import dataclass
 from time import perf_counter
 from typing import Any, Callable
 
 from numba_utils.profiling._compare import TimingStats
+
+
+def _cache_hits(fn: Any) -> int:
+    try:
+        return int(sum(fn.stats.cache_hits.values()))
+    except (AttributeError, TypeError):
+        return 0
 
 
 @dataclass(frozen=True)
@@ -121,9 +129,18 @@ def compile_time(fn: Callable[..., Any], /, *args: Any, **kwargs: Any) -> float:
 
     Measures the first call (compile + run) minus a second call (run only).
     Returns ~0.0 if ``fn`` was already compiled for this signature.
+
+    Caveat — warm on-disk cache: with ``cache=True`` and a populated
+    ``__pycache__``, the first call LOADS the compiled binary instead
+    of compiling; the measured time is then cache-load time, which can
+    be ~40x smaller than a true cold compile. When that is detected
+    (the dispatcher's cache-hit counter increased during the call), a
+    ``RuntimeWarning`` says so — to measure real compilation, delete
+    ``__pycache__`` or compile with ``cache=False``.
     """
     if not callable(fn):
         raise TypeError(f"expected a callable, got {type(fn).__name__!r}")
+    hits_before = _cache_hits(fn)
     start = perf_counter()
     fn(*args, **kwargs)
     first = perf_counter() - start
@@ -131,6 +148,15 @@ def compile_time(fn: Callable[..., Any], /, *args: Any, **kwargs: Any) -> float:
     start = perf_counter()
     fn(*args, **kwargs)
     second = perf_counter() - start
+    if _cache_hits(fn) > hits_before:
+        _warnings.warn(
+            "compile_time: the first call loaded a cached binary from "
+            "disk — this measured cache-load time, NOT compilation "
+            "(can be ~40x smaller). Delete __pycache__ or use "
+            "cache=False to measure a true cold compile.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
     return max(first - second, 0.0)
 
 

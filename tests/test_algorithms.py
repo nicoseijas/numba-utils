@@ -346,3 +346,17 @@ class TestIntegerDtypeGate:
         for fn in (counting_sort, radix_sort):
             with pytest.raises(TypingError, match="integer dtypes only"):
                 fn(np.array([1.5, 2.5]))
+
+    def test_sparse_range_relative_to_n_raises(self):
+        # 2 elements spanning 2**20 would allocate and scan a million
+        # counts to sort 2 values — counting sort's O(range) term must
+        # be guarded relative to n, not only in absolute terms
+        with pytest.raises(ValueError):
+            counting_sort(np.array([0, 2**20], dtype=np.int64))
+
+    def test_bool_dtype_still_accepted(self):
+        # 0.3.2's integer gate accidentally rejected bool, which
+        # sorted fine in 0.3.0 — np.int64(bool) is exact
+        arr = np.array([True, False, True, False, True])
+        np.testing.assert_array_equal(counting_sort(arr), np.sort(arr))
+        np.testing.assert_array_equal(radix_sort(arr), np.sort(arr))

@@ -272,3 +272,20 @@ class TestChunkedReduce:
         nu_seed(0)
         ser = rng_sum(400_000, 64, parallel=False)
         assert par != ser
+
+
+class TestParallelHistogramDegenerateArgs:
+    def test_huge_bins_raise_before_padding_overflow(self):
+        # near 2**63 the (bins + 7) padding arithmetic overflows int64
+        # into a negative dimension, which parallel lowering turned
+        # into an out-of-bounds write (0xC0000005) instead of a clean
+        # allocation error
+        arr = np.random.default_rng(0).random(SERIAL_THRESHOLD * 2)
+        for bins in (2**63 - 1, 2**63 - 7, (1 << 30) + 1):
+            with pytest.raises(ValueError):
+                parallel_histogram(arr, bins, 0.0, 1.0)
+
+    def test_degenerate_span_raises(self):
+        arr = np.zeros(SERIAL_THRESHOLD * 2)
+        with pytest.raises(ValueError):
+            parallel_histogram(arr, 64, 0.0, 5e-324)

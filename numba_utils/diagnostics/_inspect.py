@@ -140,9 +140,9 @@ def check(fn: Any, *, verbose: bool = True) -> list[str]:
     production Numba workloads — each one links the relevant doc.
     """
     report = inspect(fn)
-    warnings: list[str] = []
+    flags: list[str] = []
     if report.cache_enabled:
-        warnings.append(
+        flags.append(
             "cache=True: on-disk cached binaries can crash intermittently "
             "when loaded by a process other than the one that compiled them "
             "(multi-process worker farms, network filesystems, ephemeral "
@@ -154,7 +154,7 @@ def check(fn: Any, *, verbose: bool = True) -> list[str]:
             "See docs/numba-cache.md."
         )
     if report.parallel:
-        warnings.append(
+        flags.append(
             "parallel=True: every prange launch pays a thread-team barrier, "
             "so fine-grained parallel regions can be SLOWER than serial "
             "while still pinning all cores; repeated launches in one "
@@ -163,33 +163,33 @@ def check(fn: Any, *, verbose: bool = True) -> list[str]:
             "workers with NUMBA_NUM_THREADS=1. See docs/parallelism.md."
         )
     if report.fastmath:
-        warnings.append(
+        flags.append(
             "fastmath=True: relaxes IEEE 754 (reassociation, no NaN/signed-"
             "zero guarantees). Results may differ across runs and machines; "
             "do not use where exact float semantics or reproducibility "
             "matter."
         )
     if report.boundscheck:
-        warnings.append(
+        flags.append(
             "boundscheck=True: development mode — every array access is "
             "checked, which costs real throughput. Disable it in "
             "production builds."
         )
     if not report.signatures:
-        warnings.append(
+        flags.append(
             "not compiled yet: the first call pays the full JIT cost. Call "
             "warmup() before timing or serving latency-sensitive traffic. "
             "See docs/benchmarking.md."
         )
     elif len(report.signatures) > _SIGNATURE_CHURN_THRESHOLD:
-        warnings.append(
+        flags.append(
             f"{len(report.signatures)} compiled signatures: every new "
             "argument dtype combination triggers a full recompile. Check "
             "callers for unstable dtypes (int vs float literals, "
             "float32/float64 mixing)."
         )
-    if verbose and warnings:
+    if verbose and flags:
         print(f"diagnostics.check({report.name}):")
-        for i, warning in enumerate(warnings, 1):
+        for i, warning in enumerate(flags, 1):
             print(f"  {i}. {warning}")
-    return warnings
+    return flags

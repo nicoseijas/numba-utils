@@ -53,6 +53,15 @@ def _apply_njit(
     # boundscheck must never touch the on-disk cache).
     if locked:
         options.update(locked)
+    # Library-wide invariant, enforced at the layer where ALL option
+    # paths converge (decorator defaults, per-call kwargs, global
+    # overrides): the on-disk cache must never see a boundscheck
+    # build. Numba's cache key ignores boundscheck, so one cached
+    # binary would poison checked and unchecked callers alike —
+    # including cached_njit(boundscheck=True), which bypasses the
+    # boundscheck() decorator entirely.
+    if options.get("boundscheck"):
+        options["cache"] = False
     if func is None:
         return lambda f: _apply_njit(f, options, {}, locked)
     if not callable(func):

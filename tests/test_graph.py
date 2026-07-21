@@ -333,3 +333,21 @@ class TestCsrValidation:
         indptr = np.array([0, 10**9, 2], np.int64)
         with pytest.raises(ValueError):
             bfs(indptr, indices, 0)
+
+    def test_float_indptr_rejected_at_compile_time(self):
+        # np.zeros(n + 1) is float64 by default, and a float indptr
+        # admits NaN — which passes naive comparisons and previously
+        # drove an arbitrary-write SIGSEGV in topological_sort. The
+        # dtype gate rejects the whole class at typing time.
+        from numba.core.errors import TypingError
+
+        indptr_f = np.array([0.0, 1.0, np.nan, 5.0])
+        indices = np.zeros(5, np.int64)
+        for fn, args in (
+            (bfs, (indptr_f, indices, 0)),
+            (dfs_preorder, (indptr_f, indices, 0)),
+            (topological_sort, (indptr_f, indices)),
+            (dijkstra, (indptr_f, indices, np.ones(5), 0)),
+        ):
+            with pytest.raises(TypingError):
+                fn(*args)

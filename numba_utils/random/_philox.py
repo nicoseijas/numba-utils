@@ -14,13 +14,24 @@ against it. One layout note: NumPy increments the counter *before*
 generating, so ``philox4x64(k0, k1, c + 1, 0, 0, 0)`` equals the first
 raw block of ``np.random.Philox(counter=[c, 0, 0, 0], key=[k0, k1])``.
 
-Two usage notes that apply to every function here:
+Usage notes that apply to every function here:
 
 - From Python, pass keys/counters ``>= 2**63`` as ``np.uint64`` —
   Numba's dispatcher types plain Python ints as int64.
 - ``philox_uniform`` and ``philox_randint`` at the same
   ``(key, counter)`` consume DIFFERENT words of the block (x0 and x1),
-  so the pair is independent, not correlated.
+  so that specific pair is independent. But the counter space is
+  GLOBAL across all ``philox_*`` functions: ``philox_uniforms``
+  consumes ALL FOUR words of its blocks, so it overlaps
+  ``philox_uniform``/``philox_randint`` at the same counters —
+  measured correlation ~1.0, and the artifact is invisible to
+  marginal uniformity tests. Partition the counter space ONCE per run
+  across everything that draws from a key, or give each purpose its
+  own key.
+- Counters wrap modulo 2**64 silently: a stream that starts near the
+  top wraps onto counter 0. Keep total consumption per key below
+  2**64 (any realistic run) and don't start streams near the wrap
+  point.
 """
 
 from __future__ import annotations
@@ -136,12 +147,12 @@ def philox_uniforms(key, counter, size, out=None):
     (word ``i % 4`` of block ``counter + i // 4``), so results are
     reproducible and splittable across workers.
 
-    ``out`` must be 1-D float64. Non-1-D buffers fail loudly at
-    compile time (they can't unify with the internal allocation), but
-    the float64 dtype is a CONTRACT, not a checked condition —
-    nopython code cannot compare dtypes at runtime, and a float32
-    buffer would silently truncate, breaking bit identity with the
-    no-``out`` path.
+    ``out`` must be 1-D float64 — and both properties fail LOUDLY at
+    compile time if violated: a non-1-D or non-float64 buffer cannot
+    unify with the internal float64 allocation, so Numba raises
+    ``TypingError`` instead of silently truncating (verified and
+    pinned by tests; an earlier docstring claimed the dtype was
+    unchecked — it was wrong).
     """
     if size < 0:
         raise ValueError("philox_uniforms: size must be >= 0")

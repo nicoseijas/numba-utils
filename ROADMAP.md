@@ -117,4 +117,9 @@ the project's pitch. In implementation order:
 - Radix-based `stable_argsort` fast path for integer keys — would turn
   the current honest loss vs NumPy's stable (radix) sort into a win;
   only worth it if profiling shows argsort inside kernels matters.
+- Block-packed `philox_partial_shuffle` — the current version burns a
+  full Philox block per swap and discards 3 of its 4 words; consuming
+  all four would put the RNG at ~2.7 ns/draw, below `np.random`
+  (auditor's measurement). It changes the function's output stream,
+  so it is 0.4.0 material (or an opt-in variant), not a patch.
 - CUDA variants — out of scope until a real workload pulls them in.

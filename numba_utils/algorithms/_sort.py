@@ -32,8 +32,10 @@ def _ol_require_integer(arr):
     # Compile-time dtype gate: float inputs would silently truncate
     # through the int64 key conversions and FABRICATE values in the
     # output. Rejecting at typing time is the only check nopython can
-    # express (dtypes are not runtime-comparable).
-    if not isinstance(arr.dtype, nb_types.Integer):
+    # express (dtypes are not runtime-comparable). Boolean is allowed
+    # — it sorted fine before the gate existed, and np.int64(bool) is
+    # exact (a 0.3.2 regression rejected it).
+    if not isinstance(arr.dtype, (nb_types.Integer, nb_types.Boolean)):
         raise TypingError(
             "integer dtypes only — float input would be silently "
             "truncated; sort floats with np.sort or stable_argsort"
@@ -90,8 +92,11 @@ def counting_sort(arr):
 
     Non-comparison sort: O(n + range) where range = max - min + 1. Wins
     when the value range is small relative to n (codes, buckets, bytes).
-    Raises ``ValueError`` if range exceeds 2**27 (a 1 GiB counts array) —
-    use :func:`radix_sort` there. Integer dtypes only.
+    Raises ``ValueError`` when the range exceeds 2**27 OR grows far
+    beyond n (``range > 16n + 4096``) — in both regimes
+    :func:`radix_sort` is strictly better, and the O(range) memory and
+    scan would silently dominate. Integer dtypes only (enforced at
+    compile time).
 
     Complexity: O(n + range). Memory: O(n + range).
     """
@@ -117,6 +122,15 @@ def counting_sort(arr):
             "counting_sort: value range too large (> 2**27), use radix_sort"
         )
     value_range = np.int64(dist) + 1
+    # Counting sort is O(n + range): a range far beyond n allocates
+    # and scans range entries to sort n elements (2 elements spanning
+    # 2**27 would build a 1 GiB counts array). Where range >> n,
+    # radix_sort is strictly better — fail fast and say so.
+    if value_range > 16 * n + 4096:
+        raise ValueError(
+            "counting_sort: value range too large relative to n, "
+            "use radix_sort"
+        )
     counts = np.zeros(value_range, np.int64)
     for i in range(n):
         counts[np.int64(arr[i]) - np.int64(mn)] += 1

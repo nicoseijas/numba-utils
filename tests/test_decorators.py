@@ -138,3 +138,13 @@ class TestBoundscheck:
         assert type(fn._cache).__name__ == "NullCache"
         fn_explicit = boundscheck(cache=True)(_sum_impl)
         assert type(fn_explicit._cache).__name__ == "NullCache"
+
+    def test_boundscheck_kwarg_never_caches_either(self, monkeypatch):
+        # The invariant lives in the option-merge layer, so it covers
+        # paths that bypass the boundscheck() decorator: requesting
+        # boundscheck via kwarg on ANY decorator must also disable the
+        # on-disk cache (Numba's cache key ignores boundscheck).
+        monkeypatch.delenv(DEV_MODE_ENV_VAR, raising=False)
+        for decorator in (cached_njit, njit_fast):
+            fn = decorator(boundscheck=True)(_sum_impl)
+            assert type(fn._cache).__name__ == "NullCache"

@@ -43,8 +43,14 @@ def partial_shuffle(arr, k):
     thread-count-independent reproducibility drive indices with the
     ``philox_*`` functions instead.
 
+    ``arr`` must be 1-D: on a 2-D array the swap works on row VIEWS,
+    which alias — the "sample" silently contains duplicated rows
+    (dealing the same card twice). Raises ``ValueError`` instead.
+
     Complexity: O(k). Memory: O(1).
     """
+    if arr.ndim != 1:
+        raise ValueError("partial_shuffle: arr must be 1-D (row swaps alias)")
     n = arr.shape[0]
     if k < 0 or k > n:
         raise ValueError("partial_shuffle: k must be in [0, len(arr)]")
@@ -87,8 +93,14 @@ def philox_partial_shuffle(arr, k, key, counter):
     ``counter = iteration * k_per_iteration``) and the whole run is
     reproducible by construction. Returns ``arr``.
 
+    ``arr`` must be 1-D (see :func:`partial_shuffle`: row swaps alias).
+
     Complexity: O(k). Memory: O(1).
     """
+    if arr.ndim != 1:
+        raise ValueError(
+            "philox_partial_shuffle: arr must be 1-D (row swaps alias)"
+        )
     n = arr.shape[0]
     if k < 0 or k > n:
         raise ValueError("philox_partial_shuffle: k must be in [0, len(arr)]")
