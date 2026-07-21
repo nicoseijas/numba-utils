@@ -1,8 +1,7 @@
 # numba-utils
 
 **Battle-tested building blocks for production
-[Numba](https://numba.pydata.org/) workloads.** Built for production
-numerical software with Numba.
+[Numba](https://numba.pydata.org/) workloads.**
 
 [![PyPI](https://img.shields.io/pypi/v/numba-utils)](https://pypi.org/project/numba-utils/)
 [![CI](https://github.com/nicoseijas/numba-utils/actions/workflows/ci.yml/badge.svg)](https://github.com/nicoseijas/numba-utils/actions/workflows/ci.yml)
@@ -20,7 +19,8 @@ numerical software with Numba.
       ┌───────────────┼───────────────┐
    Arrays        Collections       Parallel
    Algorithms    Random            Profiling
-   Decorators    Testing           Diagnostics
+   Decorators    Graph             Diagnostics
+   Stats         Testing
 ```
 
 ```python
@@ -57,7 +57,7 @@ code:
 >>> from numba_utils import diagnostics
 >>> diagnostics.check(fn)
 ⚠ cache=True may crash when loaded across processes (farms, network FS)
-  → NUMBA_UTILS_CACHE=0  or  configure(cache=False)
+  → NUMBA_UTILS_CACHE=0 in the environment, before the first import
 ⚠ fastmath=True relaxes IEEE 754 — not for exact/reproducible results
 ```
 
@@ -111,11 +111,17 @@ The identity behind these:
 
 ## Modules
 
-**Core** — decorators, arrays, algorithms ·
-**Performance** — parallel (complete operations, not prange wrappers),
-profiling (JIT excluded by default), diagnostics ·
-**Data structures** — collections, random ·
-**Developer tools** — testing, config
+**Core** — decorators, arrays, algorithms, stats (`logsumexp`,
+`softmax`, `weighted_quantile`) ·
+**Performance** — parallel (complete operations, not prange wrappers;
+bit-exact `chunked_reduce`), profiling (JIT excluded by default),
+diagnostics ·
+**Data structures** — collections (dtype-generic factories), graph
+(BFS/DFS, toposort, Dijkstra, UnionFind over CSR), random (including
+the stateless counter-based Philox RNG, bit-identical to
+`np.random.Philox`) ·
+**Developer tools** — testing (reference validation + stochastic
+asserts), config
 
 Full API:
 [docs/modules.md](https://github.com/nicoseijas/numba-utils/blob/main/docs/modules.md)
@@ -130,7 +136,7 @@ ergonomic**, or **slower but solving a problem unavailable elsewhere**.
 contains losing rows on purpose: they tell you when NOT to use a
 function. Backed in-repo by reproducible
 [benchmarks/](https://github.com/nicoseijas/numba-utils/tree/main/benchmarks),
-200+ reference-validated tests
+300+ reference-validated tests
 ([why there's no coverage badge](https://github.com/nicoseijas/numba-utils/blob/main/docs/testing.md)),
 and CI running all of it. Trade-off records:
 [docs/design/](https://github.com/nicoseijas/numba-utils/tree/main/docs/design).
@@ -168,17 +174,26 @@ by cachau's
 
 ## Status
 
-Phase 1 (see
-[ROADMAP.md](https://github.com/nicoseijas/numba-utils/blob/main/ROADMAP.md)):
+All three roadmap phases are shipped (see
+[ROADMAP.md](https://github.com/nicoseijas/numba-utils/blob/main/ROADMAP.md));
+what comes next is user-driven — open an issue.
 
-- [x] decorators, profiling, diagnostics, config
-- [x] arrays, algorithms, random, collections
-- [x] parallel patterns, testing helpers
-- [x] PyPI release ([`numba-utils`](https://pypi.org/project/numba-utils/))
-- [x] Phase 2 (0.2.0): dtype-generic collections, `stable_argsort`,
+- [x] Phase 1 (0.1.x) — decorators, profiling, diagnostics, arrays,
+      algorithms, random, collections, parallel, testing;
+      [PyPI release](https://pypi.org/project/numba-utils/)
+- [x] Phase 2 (0.2.0) — dtype-generic collections, `stable_argsort`,
       `lexsort`, the `graph/` module (BFS/DFS, toposort, Dijkstra,
       UnionFind over CSR) and the `stats/` module (`logsumexp`,
       `softmax`, `weighted_quantile`)
+- [x] Phase 3 (0.3.0) — Monte Carlo primitives from the first
+      real-user feedback: counter-based Philox RNG (bit-identical to
+      `np.random.Philox`), partial Fisher–Yates sampling,
+      `combination_table`, bit-exact serial/parallel `chunked_reduce`,
+      stochastic assertions
+- [x] 0.3.1–0.3.3 — four rounds of adversarial audit absorbed, each
+      fixed and released the same day it was reported: memory-safety
+      hardening, contract corrections, ~150 attack vectors
+      ([CHANGELOG.md](https://github.com/nicoseijas/numba-utils/blob/main/CHANGELOG.md))
 
 ## Development
 
