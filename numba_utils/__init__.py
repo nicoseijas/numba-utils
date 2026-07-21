@@ -74,6 +74,11 @@ from numba_utils.profiling import (
     compile_time,
     warmup,
 )
+from numba_utils.stats import (
+    logsumexp,
+    softmax,
+    weighted_quantile,
+)
 from numba_utils.random import (
     alias_draw,
     alias_sample,
@@ -129,6 +134,7 @@ __all__ = [
     "histogram",
     "insertion_sort",
     "lexsort",
+    "logsumexp",
     "lower_bound",
     "njit_fast",
     "njit_parallel",
@@ -150,6 +156,7 @@ __all__ = [
     "rolling_sum",
     "seed",
     "shuffle",
+    "softmax",
     "stable_argsort",
     "stack_type",
     "testing",
@@ -159,5 +166,6 @@ __all__ = [
     "unique_sorted",
     "upper_bound",
     "warmup",
+    "weighted_quantile",
     "weighted_sampling",
 ]

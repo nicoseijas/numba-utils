@@ -71,6 +71,7 @@ nav:
       - Typed Collections: design/collections.md
       - Parallel: design/parallel.md
       - Graph: design/graph.md
+      - Stats: design/stats.md
       - RNG: design/rng.md
       - Benchmarking: design/benchmarking.md
   - Testing: testing.md

@@ -81,6 +81,15 @@ union by size + path compression, `union` returns whether a merge
 happened). `indices` entries are bounds-checked during traversal — a
 malformed CSR raises instead of corrupting memory.
 
+### `numba_utils.stats`
+
+Numerically hard statistics — only functions whose naive versions are
+*wrong* ([design](design/stats.md)): `logsumexp` and `softmax`
+(max-shifted; the direct formulas overflow `exp` beyond ~709; `softmax`
+takes `out=`), and `weighted_quantile` (inverted CDF — exact match
+with `np.quantile(..., weights=..., method="inverted_cdf")`; rejects
+NaN values and NaN/negative weights up front).
+
 ### `numba_utils.random`
 
 Over Numba's nopython RNG, which is separate from NumPy's — seed it

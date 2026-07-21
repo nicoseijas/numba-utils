@@ -11,6 +11,13 @@ Phase 2 opens: dtype-generic collections.
 
 ### Added
 
+- **stats** — new module for numerics whose naive implementations are
+  wrong, not just slow: `logsumexp` and `softmax` (max-shifted — the
+  direct formulas overflow `exp` beyond ~709; `softmax` supports
+  `out=`), and `weighted_quantile` (inverted CDF convention, exact
+  match with `np.quantile(..., weights=..., method="inverted_cdf")`;
+  fail-fast validation of NaN values and NaN/negative weights).
+  Rationale in docs/design/stats.md.
 - **graph** — new module: algorithms over CSR adjacency arrays
   (`scipy.sparse.csr_matrix` layout, no Graph class). `edges_to_csr`
   (stable; returns an `order` array to align per-edge payloads),

@@ -62,3 +62,18 @@ realistic representation on each side); there is no NumPy equivalent
 for these. With SciPy available, `scipy.sparse.csgraph` is the
 vectorized alternative from Python — the value here is running inside
 `@njit` kernels without leaving nopython.
+
+## Stats
+
+| case | baseline | numba-utils | speedup |
+| --- | ---: | ---: | ---: |
+| logsumexp (2,000,000 f64) (vs naive NumPy) | 7.13 ms | 6.12 ms | 1.17x |
+| softmax (2,000,000 f64) (vs max-shifted NumPy) | 12.02 ms | 7.93 ms | 1.52x |
+| weighted_quantile (1,000,000 f64) (vs np.quantile weighted) | 30.82 ms | 87.80 ms | 0.35x |
+
+The naive logsumexp baseline is also numerically WRONG beyond ~709
+(exp overflows to inf) — these functions exist for correctness first.
+`weighted_quantile` loses from Python: NumPy's SIMD sort outruns
+Numba's argsort. Its value is availability inside `@njit`
+(`np.quantile` with weights cannot be called from nopython) plus
+fail-fast validation of NaN and negative weights.

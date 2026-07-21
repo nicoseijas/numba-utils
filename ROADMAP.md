@@ -66,8 +66,13 @@ In value order:
    rather than the payload-less `PriorityQueue` originally sketched.
    10–20x over idiomatic pure Python (BENCHMARKS.md, Graph section);
    design decisions in docs/design/graph.md.
-4. **Numerics that pass the identity filter** — `logsumexp`, `softmax`
-   (stability-critical), `weighted_quantile` (no NumPy equivalent).
+4. **Numerics that pass the identity filter** ✅ — the `stats/` module:
+   `logsumexp`, `softmax` (max-shifted; the naive formulas are wrong,
+   not just slow) and `weighted_quantile` (inverted CDF, exact match
+   with NumPy's weighted `np.quantile`; honest loss from Python, wins
+   by existing inside `@njit`). docs/design/stats.md.
+
+Phase 2 complete — shipped as 0.2.0.
 
 Rules of engagement, unchanged: every addition arrives with tests
 (including edge cases), an entry in BENCHMARKS.md measured against the
