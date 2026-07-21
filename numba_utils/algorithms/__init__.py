@@ -1,6 +1,10 @@
 """Selection and sorting algorithms specialized for Numba."""
 
 from numba_utils.algorithms._combinatorics import combination_table
+from numba_utils.algorithms._disjoint import (
+    DisjointRankStructure,
+    disjoint_rank_aggregate,
+)
 from numba_utils.algorithms._select import (
     fast_argpartition,
     nth_element,
@@ -17,9 +21,11 @@ from numba_utils.algorithms._sort import (
 from numba_utils.algorithms._topk import argmax2, topk
 
 __all__ = [
+    "DisjointRankStructure",
     "argmax2",
     "combination_table",
     "counting_sort",
+    "disjoint_rank_aggregate",
     "fast_argpartition",
     "insertion_sort",
     "lexsort",

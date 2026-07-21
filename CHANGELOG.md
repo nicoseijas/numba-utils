@@ -12,6 +12,21 @@ PLO5 CFR solver (items 1–2 of the contribution roadmap).
 
 ### Added
 
+- **algorithms** — the Phase 4 flagship: `disjoint_rank_aggregate` and
+  `DisjointRankStructure` (build/eval). Reach-weighted all-pairs
+  comparison that skips pairs sharing a key — EXACTLY, via
+  inclusion–exclusion over the hero's 2^K−1 key subsets (an algebraic
+  identity, not tuning): O((2^K−1)·N log N) vs the dense O(N·M).
+  Generalized from the contributing solver's showdown kernel: keys are
+  ANY int64 values (rank-compressed internally, overflow-guarded),
+  K ≤ 12 distinct keys per row (validated — a duplicated key breaks
+  the identity), house parallel conventions (serial below the launch
+  threshold, cache=False on parfor kernels). The build/eval split is
+  the iterative-solver shape: topology built once, weights change —
+  3.2x over dense one-shot, 133x with the build amortized. Certified
+  in the suite the way the solver certified it: dense reference
+  sharing no code path, plus a drop-removal `mutation_screams` that
+  proves the removal term is live.
 - **testing** — `mutation_screams(fn, threshold=...)`: deliberately
   break the kernel and assert the surrounding check would catch it —
   a check that cannot fail certifies nothing. A non-finite deviation

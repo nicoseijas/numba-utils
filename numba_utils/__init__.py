@@ -3,9 +3,11 @@
 from numba_utils import diagnostics, testing
 from numba_utils._config import config, configure
 from numba_utils.algorithms import (
+    DisjointRankStructure,
     argmax2,
     combination_table,
     counting_sort,
+    disjoint_rank_aggregate,
     fast_argpartition,
     insertion_sort,
     lexsort,
@@ -108,6 +110,7 @@ __all__ = [
     "BenchmarkResult",
     "BitSet",
     "ComparisonResult",
+    "DisjointRankStructure",
     "FixedQueue",
     "ObjectPool",
     "PriorityQueue",
@@ -140,6 +143,7 @@ __all__ = [
     "dfs_preorder",
     "diagnostics",
     "dijkstra",
+    "disjoint_rank_aggregate",
     "edges_to_csr",
     "fast_argpartition",
     "fast_clip",

@@ -16,6 +16,8 @@ Seed 42, 11 runs after 2 warmup runs, mean times.
 | counting_sort range<1000 (5,000,000 i64) | 27.05 ms | 13.87 ms | 1.95x |
 | unique_sorted (5,000,000 i64, sorted) | 27.75 ms | 1.63 ms | 16.99x |
 | combination_table C(30,4)=27,405 (vs itertools) | 0.87 ms | 0.14 ms | 6.39x |
+| disjoint_rank_aggregate one-shot (N=M=3,000, K=5) (vs dense NumPy) | 199.35 ms | 62.52 ms | 3.19x |
+| DisjointRankStructure.eval (build amortized, same size) | 194.52 ms | 1.47 ms | 132.72x |
 | stable_argsort (5,000,000 i64, many ties) | 254.99 ms | 1010.74 ms | 0.25x |
 | lexsort 3 keys (1,000,000 i64) | 72.82 ms | 190.13 ms | 0.38x |
 

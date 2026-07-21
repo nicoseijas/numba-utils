@@ -29,6 +29,7 @@ verbatim.
 - `topk` — heap path for small k, quickselect for large; `argmax2` (index AND value)
 - Sorts: `insertion_sort`, `partial_sort` (in-place); `counting_sort`, `radix_sort` (new array; integer dtypes, honest loss vs NumPy's SIMD sort on full-range keys); `stable_argsort` (the stable-argsort spelling that works in nopython), `lexsort` (`np.lexsort` for `@njit` — Numba doesn't implement it; takes a 2-D array, last row is the primary key)
 - `combination_table(n, k)` — the C(n, k) index table; loop over `table.shape[0]` instead of hardcoding combo counts (the evaluator bug class)
+- `disjoint_rank_aggregate` / `DisjointRankStructure` — reach-weighted all-pairs comparison skipping pairs that share a key, EXACT via inclusion–exclusion over the 2^K−1 key subsets: O((2^K−1)·N log N) vs dense O(N·M). `build` once, `eval` per weight vector (the CFR shape: 133x over dense with the build amortized). Certified against a dense reference with a drop-removal mutation that screams. Driven from Python, not njit-callable.
 
 ## Performance
 

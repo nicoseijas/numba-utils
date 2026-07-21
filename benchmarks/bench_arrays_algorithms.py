@@ -142,5 +142,58 @@ def main() -> None:
         )
 
 
+
+
+def bench_disjoint() -> None:
+    """disjoint_rank_aggregate vs the dense O(N*M) reference. Printed
+    as extra rows of the main table; the amortized row is the shape
+    iterative solvers (CFR) run: topology built once, weights change."""
+    from numba_utils import DisjointRankStructure, disjoint_rank_aggregate
+
+    n, k, uni = 3000, 5, 40
+    rng = np.random.default_rng(SEED)
+
+    def items(seed):
+        r = np.random.default_rng(seed)
+        keys = np.empty((n, k), np.int64)
+        for i in range(n):
+            keys[i] = r.choice(uni, k, replace=False)
+        return keys, r.integers(0, n // 2, n)
+
+    hk, hs = items(1)
+    ok, os_ = items(2)
+    w = rng.random(n)
+    hm = np.zeros((n, uni), bool)
+    om = np.zeros((n, uni), bool)
+    for i in range(n):
+        hm[i, hk[i]] = True
+        om[i, ok[i]] = True
+
+    def np_dense(w):
+        disjoint = ~(hm @ om.T)
+        diff = hs[:, None] - os_[None, :]
+        return (
+            ((diff > 0) & disjoint) @ w,
+            ((diff < 0) & disjoint) @ w,
+            ((diff == 0) & disjoint) @ w,
+        )
+
+    def one_shot(w):
+        return disjoint_rank_aggregate(hk, hs, ok, os_, w)
+
+    st = DisjointRankStructure.build(hk, hs, ok, os_)
+    for name, fn in (
+        ("disjoint_rank_aggregate one-shot (N=M=3,000, K=5) (vs dense NumPy)", one_shot),
+        ("DisjointRankStructure.eval (build amortized, same size)", st.eval),
+    ):
+        result = compare(np_dense, fn, args=(w,), n=RUNS, warmup_runs=WARMUP)
+        print(
+            f"| {name} | {result.first.mean * 1e3:.2f} ms "
+            f"| {result.second.mean * 1e3:.2f} ms "
+            f"| {result.speedup:.2f}x |"
+        )
+
+
 if __name__ == "__main__":
     main()
+    bench_disjoint()
