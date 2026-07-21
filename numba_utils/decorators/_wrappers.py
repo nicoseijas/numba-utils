@@ -62,15 +62,29 @@ def _apply_njit(
     # including cached_njit(boundscheck=True), which bypasses the
     # boundscheck() decorator entirely.
     if options.get("boundscheck"):
-        # Warn if this silently overrides an EXPLICIT cache=True (a
-        # per-call kwarg), matching configure()'s fail-fast stance —
-        # the override stands (it is a safety invariant) but is audible.
-        if overrides.get("cache") is True:
+        # Warn if this silently overrides a DELIBERATE cache=True —
+        # whether a per-call kwarg or the global override
+        # (configure()/NUMBA_UTILS_CACHE, which wins over kwargs, so it
+        # is what actually got overridden when set) — matching
+        # configure()'s fail-fast stance. The override stands (it is a
+        # safety invariant) but is audible. Decorator DEFAULTS stay
+        # silent: nobody asked for them by name.
+        forced_cache = config.resolve("cache")
+        if forced_cache is True:
+            cache_source = (
+                "the global cache=True override (configure()/"
+                f"{CACHE_ENV_VAR})"
+            )
+        elif forced_cache is None and overrides.get("cache") is True:
+            cache_source = "your explicit cache=True"
+        else:
+            cache_source = None
+        if cache_source is not None:
             warnings.warn(
                 "boundscheck=True forces cache=False (Numba's cache key "
                 "ignores boundscheck, so a shared cache would poison "
-                "checked and unchecked callers) — your explicit "
-                "cache=True was overridden.",
+                f"checked and unchecked callers) — {cache_source} was "
+                "overridden.",
                 RuntimeWarning,
                 stacklevel=3,
             )

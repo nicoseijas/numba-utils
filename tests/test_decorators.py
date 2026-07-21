@@ -136,8 +136,13 @@ class TestBoundscheck:
         monkeypatch.setenv(DEV_MODE_ENV_VAR, "1")
         monkeypatch.setenv(CACHE_ENV_VAR, "1")
 
-        fn = boundscheck(_sum_impl)
+        # the global cache=True override is dropped by the lock — and
+        # since the 0.4.0 verdict, that is audible too
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            fn = boundscheck(_sum_impl)
         assert type(fn._cache).__name__ == "NullCache"
+        assert any(issubclass(w.category, RuntimeWarning) for w in caught)
         # explicit cache=True is overridden AND warns (issue #14)
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
@@ -176,4 +181,51 @@ class TestBoundscheck:
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
             boundscheck(_sum_impl)
+        assert not any(issubclass(w.category, RuntimeWarning) for w in caught)
+
+    def test_global_cache_true_override_warns(self, monkeypatch):
+        # 0.4.0-verdict regression: the #14 warning fired only for the
+        # per-call kwarg; a cache=True forced via configure() or
+        # NUMBA_UTILS_CACHE=1 was dropped in silence — precisely the
+        # deliberate, environment-level request the warning exists for.
+        import warnings
+
+        from numba_utils import config, configure
+
+        monkeypatch.delenv(DEV_MODE_ENV_VAR, raising=False)
+        try:
+            configure(cache=True)
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                fn = cached_njit(boundscheck=True)(_sum_impl)
+            assert type(fn._cache).__name__ == "NullCache"
+            assert any(
+                issubclass(w.category, RuntimeWarning)
+                and "configure()" in str(w.message)
+                for w in caught
+            )
+        finally:
+            config.reset()
+
+        monkeypatch.setenv(CACHE_ENV_VAR, "1")
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            fn = cached_njit(boundscheck=True)(_sum_impl)
+        assert type(fn._cache).__name__ == "NullCache"
+        assert any(issubclass(w.category, RuntimeWarning) for w in caught)
+
+    def test_global_cache_false_silences_the_explicit_kwarg_warning(
+        self, monkeypatch
+    ):
+        # With a global cache=False policy, an explicit per-call
+        # cache=True is already dead before boundscheck touches it —
+        # warning about boundscheck overriding it would be misleading.
+        import warnings
+
+        monkeypatch.delenv(DEV_MODE_ENV_VAR, raising=False)
+        monkeypatch.setenv(CACHE_ENV_VAR, "0")
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            fn = cached_njit(cache=True, boundscheck=True)(_sum_impl)
+        assert type(fn._cache).__name__ == "NullCache"
         assert not any(issubclass(w.category, RuntimeWarning) for w in caught)
