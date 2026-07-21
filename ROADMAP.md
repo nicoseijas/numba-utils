@@ -2,263 +2,73 @@
 
 ## Founding decisions (2026-07-17)
 
-- **Phase 1 order:** start with `decorators/` + `profiling/`, which are the foundation for developing and benchmarking everything else. Then `arrays/` + `algorithms/`.
+- **Phase 1 order:** start with `decorators/` + `profiling/`, the
+  foundation for developing and benchmarking everything else. Then
+  `arrays/` + `algorithms/`. *(Done in that order.)*
 - **Targets:** latest stable Numba, Python 3.10+.
-- **Publishing:** private development for now; GitHub/PyPI once Phase 1 is solid.
+- **Publishing:** originally "private until Phase 1 is solid" — Phase 1
+  got solid: public on GitHub and released on PyPI as 0.1.0
+  (2026-07-17), 0.1.1 (2026-07-20) and 0.1.2 (2026-07-21).
+- **Direction:** identity over quantity. Ship functions that are
+  genuinely hard to implement well with Numba, or where a clear,
+  measured improvement exists — not a grab-bag of one-liners.
 
-## Phase 1 — Foundation
+## Phase 1 — Foundation ✅ (shipped as 0.1.0–0.1.2)
 
-**Goal:** build a solid base.
+All eight modules shipped, benchmarked (BENCHMARKS.md) and documented
+(docs/): `decorators/`, `profiling/`, `arrays/`, `algorithms/`,
+`random/`, `collections/`, `parallel/`, `testing/` — plus the unplanned
+extras: global configuration (`configure()` / `NUMBA_UTILS_*`), the
+`diagnostics/` module (`show`/`check`/`inspect`) and the permanent
+docs knowledge base (performance, numba-cache, parallelism,
+benchmarking). Two audit rounds (0.1.1, 0.1.2) hardened validation and
+fixed out-of-bounds edge cases. The current API is documented in
+docs/modules.md; per-item history lives in CHANGELOG.md.
 
-**Status:** `decorators/`, `profiling/`, `arrays/`, `algorithms/`, `random/`
-and `collections/` implemented and benchmarked (see BENCHMARKS.md). Beyond
-the original list, shipped: global configuration (`configure()` /
-`NUMBA_UTILS_*` env overrides), the `diagnostics/` module
-(`show`/`check`/`inspect`), and the permanent `docs/` knowledge base
-(performance, numba-cache, parallelism, benchmarking).
+Scope decisions made along the way:
 
-`parallel/` shipped as complete parallel operations (parallel_sum,
-parallel_reduce, parallel_histogram, parallel_prefix_sum, parallel_topk)
-with serial fallbacks below `SERIAL_THRESHOLD` — patterns, not prange
-wrappers. The `@parallel` decorator was renamed `njit_parallel`, freeing
-the `parallel` name for the subpackage. `profiling/` gained function-mode
-`benchmark` (JIT excluded by default) and `compile_stats`. `testing/`
-shipped `assert_equivalent` + `random_arrays` + `deterministic_rng`
-(`benchmark_assert` deferred: speedup assertions are flaky in CI by
-design).
+- **Closed as covered:** `argpartition_topk` (→ `topk` /
+  `fast_argpartition`), `Multiset` (→ `counter`), `clamp`
+  (→ `fast_clip`).
+- **Replaced:** `parallel_range` + work-stealing helpers — `parallel/`
+  shipped as complete, engineered operations (sum/reduce/histogram/
+  prefix_sum/topk with serial fallbacks) instead of prange wrappers;
+  the constraint list that drove this lives in docs/parallelism.md.
+- **Deferred by design:** `benchmark_assert` (speedup assertions are
+  flaky in CI); `alias_sampler` shipped split as
+  `alias_setup`/`alias_draw`/`alias_sample`.
+- **Blocked upstream:** Atomics (`atomic_add`/`max`/`min`/`inc`) —
+  Numba has no CPU atomics today (CUDA only). Revisit if that changes.
+- **Deprioritized:** `math/` and `geometry/` wish lists — most entries
+  fail the "genuinely hard in Numba" filter. Survivors move to Phase 2.
 
-Naming/scope notes: `alias_sampler` shipped as `alias_setup` +
-`alias_draw` + `alias_sample` (setup/draw split preserves the O(1)-per-
-draw property); `Counter` shipped as the `counter` function; `Multiset`
-deferred (`counter` covers the counting use). Collections fix dtypes in
-v1 (`float64` values, `int64` indices) — dtype-generic factories pending.
-Still pending: `argpartition_topk` (covered by
-`topk`/`fast_argpartition`), `stable_argsort`, `lexsort`.
+## Phase 2 — Depth (in progress)
 
-Direction (2026-07-17): identity over quantity. `math/` is deprioritized
-— only functions that are genuinely hard to implement with Numba or
-where a clear improvement exists.
+In value order:
 
-```
-numba_utils/
-    decorators/
-    arrays/
-    algorithms/
-    random/
-    collections/
-    parallel/
-    testing/
-    profiling/
-```
+1. **dtype-generic collections** *(in progress)* — factory API
+   alongside the fixed-dtype classes, per docs/design/collections.md:
+   `stack_type(value_type)`, `fixed_queue_type`, `ring_buffer_type`,
+   `priority_queue_type`, returning cached jitclass specializations
+   (`stack_type(float64) is Stack`). The float64/int64 defaults stay —
+   the generic API is additive, nobody pays for it who doesn't use it.
+2. **`stable_argsort`, `lexsort`** — the two algorithms pending from
+   Phase 1. Numba lacks a stable argsort; lexsort composes on top.
+3. **`graph/` module** — structures that are genuinely painful in
+   nopython mode: `UnionFind` (jitclass), BFS/DFS over CSR adjacency,
+   topological sort, Dijkstra (on the existing `PriorityQueue`).
+4. **Numerics that pass the identity filter** — `logsumexp`, `softmax`
+   (stability-critical), `weighted_quantile` (no NumPy equivalent).
 
-### Decorators
+Rules of engagement, unchanged: every addition arrives with tests
+(including edge cases), an entry in BENCHMARKS.md measured against the
+full chain (Python → NumPy → Numba → numba-utils), honest docs about
+when NOT to use it, and NaN/overflow behavior stated or validated.
 
-- `@njit_fast`
+## Later / open questions
 
-  ```python
-  @njit_fast
-  def foo():
-      ...
-  ```
-
-  Internally:
-
-  ```python
-  njit(
-      cache=True,
-      fastmath=True,
-      nogil=True
-  )
-  ```
-
-- `@parallel`
-
-  ```python
-  @parallel
-  def foo():
-      ...
-  ```
-
-  Clean alias for `@njit(parallel=True)`.
-
-- `@cached_njit` — compiles once. Ideal for scripts.
-- `@boundscheck` — development version. Adds asserts; they vanish in production.
-
-### Arrays
-
-A lot of value here.
-
-- `binary_search` — `idx = binary_search(arr, value)`
-- `lower_bound`
-- `upper_bound`
-- `argpartition_topk` — more intuitive than NumPy.
-- `unique_sorted` — specialized.
-- `fast_clip`
-- `normalize`
-- `cumulative_sum`
-- `rolling_sum`
-- `rolling_mean`
-- `histogram` — optimized for integers.
-- `bincount`
-
-### Algorithms
-
-This is where the project can shine.
-
-- `fast_argpartition` — specialized version.
-- `nth_element`
-- `quickselect`
-- `radix_sort`
-- `counting_sort`
-- `insertion_sort`
-- `partial_sort`
-- `topk` — `topk(arr, k)`
-- `argmax2` — returns index and value.
-- `stable_argsort`
-- `lexsort` — Numba-compatible.
-
-### Random
-
-- `choice`
-- `shuffle`
-- `permutation`
-- `reservoir_sampling`
-- `weighted_sampling`
-- `alias_sampler` — very useful.
-
-### Collections
-
-One of the most interesting parts.
-
-- `typed_defaultdict`
-
-  ```python
-  d = typed_defaultdict(
-      key_type=int64,
-      value_type=float64
-  )
-  ```
-
-- `Counter`
-- `Multiset`
-- `BitSet`
-- `RingBuffer`
-- `FixedQueue`
-- `PriorityQueue`
-- `Stack`
-- `SparseSet`
-- `ObjectPool`
-
-### Parallel
-
-A huge opportunity here.
-
-Design constraints learned from real Numba workloads (multi-process CFR
-farms) that this module must respect and document:
-
-- Fine-grained `prange` over tiny regions loses to serial: every launch
-  pays a full thread-team barrier. Parallelism pays on coarse,
-  independent, race-free slots — the API should push users there.
-- Repeated `prange` launches in one process can crash the threadpool on
-  some setups; long-lived processes with process-level parallelism across
-  independent work items are often the better architecture.
-- Cross-module `njit -> njit` calls into a parallel region have
-  segfaulted in the wild; parallel kernels should be co-located with
-  their `prange` driver.
-- Micro-benchmarks of jitted loops over-report throughput (loop
-  hoisting); benchmark helpers must measure realistic call patterns.
-
-- `parallel_range`
-
-  ```python
-  for i in parallel_range(n):
-      ...
-  ```
-
-  Enables: chunks, scheduling, balance.
-
-- `parallel_reduce`
-- `parallel_sum`
-- `parallel_histogram`
-- `parallel_prefix_sum`
-- Work stealing helpers
-
-### Atomics
-
-When Numba allows it (CPU atomics are not supported today; CUDA only).
-
-- `atomic_add`
-- `atomic_max`
-- `atomic_min`
-- `atomic_inc`
-
-### Math
-
-- `clamp`
-- `lerp`
-- `sigmoid`
-- `softmax`
-- `logsumexp`
-- `percentile`
-- `quantile`
-- `median`
-
-### Geometry
-
-Very useful for simulations.
-
-- `dot2`
-- `cross2`
-- `norm2`
-- `distance2`
-- `bounding_box`
-
-### Statistics
-
-- `mean`
-- `variance`
-- `std`
-- `covariance`
-- `correlation`
-- `weighted_mean`
-- `weighted_quantile`
-
-### Graph
-
-- BFS
-- DFS
-- UnionFind
-- Topological Sort
-- Dijkstra
-
-### Profiling
-
-Another very valuable part.
-
-- `benchmark()`
-
-  ```python
-  with benchmark():
-      foo()
-  ```
-
-- `compare()` — `compare(foo, bar)` produces: speedup, mean, median, variance.
-- `warmup()`
-- `compile_time()`
-
-### Testing
-
-- `assert_close`
-- `random_arrays`
-- `benchmark_assert`
-- `deterministic_rng`
-
-## Benchmark Suite
-
-Every algorithm must be measured against the whole chain:
-
-```
-Python → NumPy → Numba → numba-utils
-```
-
-With reproducible results.
+- Dtype-generic `SparseSet`/`BitSet` universes beyond int64 indices —
+  no demand yet; index dtypes are rarely the bottleneck.
+- `parallel/` additions (e.g. parallel sort) — only with a benchmark
+  that beats NumPy's SIMD sort by enough to matter.
+- CUDA variants — out of scope until a real workload pulls them in.
