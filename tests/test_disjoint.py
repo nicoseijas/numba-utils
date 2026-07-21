@@ -152,6 +152,45 @@ class TestDisjointRankAggregate:
                 np.arange(13)[None, :], s, np.arange(13, 26)[None, :], s
             )  # K > 12
 
+    def test_full_deck_k12_matches_dense(self):
+        # 0.4.0-verdict regression: the positional subset encoding
+        # capped K=12 at 28 distinct key values, so a 52-card deck was
+        # rejected for K >= 11 while the docstring promised "any int64,
+        # K <= 12". The combinadic fallback must admit it AND agree
+        # with the dense reference.
+        universe = 52
+        hk, hs = _random_items(25, 12, universe, 20)
+        ok, os_ = _random_items(30, 12, universe, 21)
+        w = np.random.default_rng(22).random(30)
+        d = _dense(hk, hs, ok, os_, w, universe)
+        got = disjoint_rank_aggregate(hk, hs, ok, os_, w)
+        for a, b in zip(got, d):
+            np.testing.assert_allclose(a, b, rtol=1e-9, atol=1e-12)
+
+    def test_combinadic_regime_k5(self):
+        # K=5 past the positional cap (3775 distinct values) but under
+        # the combinadic one (9841): sparse large-value keys.
+        universe = 5000
+        hk, hs = _random_items(30, 5, universe, 23)
+        ok, os_ = _random_items(40, 5, universe, 24)
+        w = np.random.default_rng(25).random(40)
+        d = _dense(hk, hs, ok, os_, w, universe)
+        got = disjoint_rank_aggregate(hk, hs, ok, os_, w)
+        for a, b in zip(got, d):
+            np.testing.assert_allclose(a, b, rtol=1e-9, atol=1e-12)
+
+    def test_domain_overflow_reports_the_cap(self):
+        # Past both encodings the error must state the actual cap for
+        # this K, so the published envelope is checkable.
+        rng = np.random.default_rng(26)
+        hk = np.sort(rng.choice(100_000, (2, 12), replace=False), axis=1)
+        ok = np.sort(rng.choice(100_000, (300, 12), replace=False), axis=1)
+        s2 = np.array([1, 1])
+        sm = np.ones(300, np.int64)
+        w = np.ones(300)
+        with pytest.raises(ValueError, match=r"cap at K=12 is 158"):
+            disjoint_rank_aggregate(hk, s2, ok, sm, w)
+
     def test_zero_weights_contribute_nothing(self):
         universe = 12
         hk, hs = _random_items(40, 3, universe, 14)

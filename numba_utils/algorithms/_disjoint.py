@@ -29,6 +29,7 @@ callable inside ``@njit``.
 from __future__ import annotations
 
 import itertools
+import math
 
 import numpy as np
 from numba import prange
@@ -38,6 +39,10 @@ from numba_utils.decorators import cached_njit, njit_parallel
 _PARALLEL_THRESHOLD = 1 << 16
 _MAX_K = 12
 _MAX_CODE = 1 << 62
+# Cap on the combinadic binomial table, in int64 entries (2**24 =
+# 128 MiB). Only reachable for K <= 3, where the positional encoding
+# already covers V in the hundreds of millions.
+_MAX_COMB_TABLE = 1 << 24
 
 
 # cache=False on the parallel kernels, per house convention for
@@ -163,6 +168,57 @@ def _encode(keys_ranked, positions, base, k_total):
     return code * (k_total + 1) + sub.shape[1]
 
 
+def _binom_table(v_count, k):
+    # comb[v, j] = C(v, j) for 0 <= v < v_count, 0 <= j <= k. Built by
+    # the hockey-stick identity C(v, j) = Σ_{u<v} C(u, j-1); every
+    # entry is <= max_s C(v_count, s), which the caller has already
+    # guarded below 2**62 / (k + 1), so int64 never overflows here.
+    comb = np.zeros((v_count, k + 1), np.int64)
+    comb[:, 0] = 1
+    for j in range(1, k + 1):
+        comb[1:, j] = np.cumsum(comb[:-1, j - 1])
+    return comb
+
+
+def _encode_combinadic(keys_ranked, positions, comb, k_total):
+    # Combinatorial number system: a sorted subset {v_1 < ... < v_s}
+    # of ranks 0..V-1 maps bijectively to Σ_j C(v_j, j), a rank in
+    # [0, C(V, s)) — position-independent, so hero and opponent
+    # subsets with the same values land in the same group.
+    sub = np.sort(keys_ranked[:, list(positions)], axis=1)
+    rank = np.zeros(sub.shape[0], np.int64)
+    for j in range(sub.shape[1]):
+        rank += comb[sub[:, j], j + 1]
+    return rank * (k_total + 1) + sub.shape[1]
+
+
+def _combinadic_limit(v_count, k):
+    return max(math.comb(v_count, s) for s in range(1, k + 1)) * (k + 1)
+
+
+def _domain_cap(k):
+    """Largest number of distinct key values accepted at this K
+    (either encoding). Exact-integer binary search; the accepted set
+    is a union of two prefixes, hence a prefix."""
+
+    def ok(v):
+        if ((v + 1) ** k) * (k + 1) < _MAX_CODE:
+            return True
+        return (
+            _combinadic_limit(v, k) < _MAX_CODE
+            and v * (k + 1) <= _MAX_COMB_TABLE
+        )
+
+    lo, hi = 1, 1 << 62
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        if ok(mid):
+            lo = mid
+        else:
+            hi = mid - 1
+    return lo
+
+
 class DisjointRankStructure:
     """Prebuilt incidence structure: ``build`` once, ``eval`` per
     weight vector.
@@ -196,18 +252,38 @@ class DisjointRankStructure:
                 f"item — beyond K={_MAX_K} the expansion dominates; this "
                 "algorithm targets small key sets"
             )
-        # Rank-compress the key domain so ANY int64 values work; the
-        # subset codes then need (V+1)^K * (K+1) to fit in int64.
+        # Rank-compress the key domain so ANY int64 values work. Subset
+        # codes must fit in int64; two encodings, widest that fits:
+        # - positional (digits base V+1): free, fits while
+        #   (V+1)^K·(K+1) < 2**62;
+        # - combinadic (combinatorial number system): the subset's rank
+        #   among C(V, s) — a K!-wider envelope, C(V,K)·(K+1) < 2**62,
+        #   at the cost of a (V, K+1) binomial table. This is what lets
+        #   a 52-card deck through at every K <= 12 (positional capped
+        #   it at K <= 10 / 28 distinct values at K=12).
         uniq, inv = np.unique(
             np.concatenate([hero_keys.ravel(), opp_keys.ravel()]),
             return_inverse=True,
         )
-        base = len(uniq) + 1
-        if (base**k) * (k + 1) >= _MAX_CODE:
+        v_count = len(uniq)
+        base = v_count + 1
+        if (base**k) * (k + 1) < _MAX_CODE:
+            def _enc(mat, pos):
+                return _encode(mat, pos, base, k)
+        elif (
+            _combinadic_limit(v_count, k) < _MAX_CODE
+            and v_count * (k + 1) <= _MAX_COMB_TABLE
+        ):
+            binom = _binom_table(v_count, k)
+
+            def _enc(mat, pos):
+                return _encode_combinadic(mat, pos, binom, k)
+        else:
             raise ValueError(
-                f"disjoint_rank_aggregate: {len(uniq)} distinct key values "
-                f"with K={k} overflow the subset encoding — reduce the key "
-                "domain or K"
+                f"disjoint_rank_aggregate: {v_count} distinct key values "
+                f"with K={k} overflow the subset encoding (the cap at "
+                f"K={k} is {_domain_cap(k)} distinct values) — reduce "
+                "the key domain or K"
             )
         n_hero_total = hero_keys.shape[0] * k
         hk = inv[:n_hero_total].reshape(hero_keys.shape).astype(np.int64)
@@ -224,7 +300,7 @@ class DisjointRankStructure:
         rj = [np.arange(st.n_opp)]
         rs = [opp_scores]
         for pos, _sign in combos:
-            rk.append(_encode(ok, pos, base, k))
+            rk.append(_enc(ok, pos))
             rj.append(np.arange(st.n_opp))
             rs.append(opp_scores)
         rk = np.concatenate(rk)
@@ -238,7 +314,7 @@ class DisjointRankStructure:
         qsc = [hero_scores]
         seff = [np.ones(st.n_hero)]
         for pos, sign in combos:
-            qk.append(_encode(hk, pos, base, k))
+            qk.append(_enc(hk, pos))
             qsc.append(hero_scores)
             seff.append(np.full(st.n_hero, -sign))
         qk = np.concatenate(qk)
@@ -323,13 +399,24 @@ def disjoint_rank_aggregate(hero_keys, hero_scores, opp_keys, opp_scores, opp_w)
     ``win[i] = Σ_j (hero_scores[i] > opp_scores[j]) · disjoint(i, j) ·
     opp_w[j]`` (lose/tie analogous), where ``disjoint`` means key sets
     share no element. O((2^K − 1)·N log N) vs the dense O(N·M), exact
-    by inclusion–exclusion (see the module docstring). Keys are any
-    int64 values, K distinct per row, K <= 12.
+    by inclusion–exclusion (see the module docstring).
 
-    Evaluating many weight vectors over the same items? Build once:
-    ``st = DisjointRankStructure.build(...)`` then ``st.eval(w)`` —
-    the sort topology is reused, which is the shape iterative solvers
-    (CFR) need.
+    Domain envelope: keys are any int64 values, K distinct per row,
+    K <= 12 — AND the number of distinct key values V must satisfy
+    ``C(V, K)·(K+1) < 2**62`` (the subset encoding must fit in int64;
+    validated, with the cap for your K in the error message). A
+    52-card deck fits at every K <= 12; K=5 admits ~9,800 distinct
+    values.
+
+    Performance shape: the one-shot pays the full topology build
+    (~80% of its time, NumPy lexsort work) and CAN LOSE to a dense
+    O(N·M) pass at moderate sizes. The asymptotics win in the
+    ITERATIVE form: build once via
+    ``st = DisjointRankStructure.build(...)``, then ``st.eval(w)`` per
+    weight vector is a few segmented passes with no sorting — the
+    shape iterative solvers (CFR) need. If you evaluate a single
+    weight vector once, benchmark against your dense reference before
+    adopting this.
     """
     st = DisjointRankStructure.build(hero_keys, hero_scores, opp_keys, opp_scores)
     return st.eval(opp_w)
