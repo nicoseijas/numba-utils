@@ -151,6 +151,10 @@ class TestHistograms:
         with pytest.raises(ValueError):
             bincount(np.array([1, -1], dtype=np.int64))
 
+    def test_bincount_negative_minlength_raises(self):
+        with pytest.raises(ValueError):
+            bincount(np.array([0, 1], dtype=np.int64), -1)
+
     def test_histogram_matches_numpy(self):
         arr = RNG.normal(0, 1, 10_000)
         expected, _ = np.histogram(arr, bins=20, range=(-3.0, 3.0))
@@ -160,6 +164,15 @@ class TestHistograms:
         arr = RNG.integers(0, 100, 10_000)
         expected, _ = np.histogram(arr, bins=10, range=(0, 100))
         np.testing.assert_array_equal(histogram(arr, 10, 0, 100), expected)
+
+    def test_histogram_ignores_nan(self):
+        # int(NaN) is INT64_MIN in nopython mode: an unfiltered NaN used
+        # to index one element past the counts buffer (silent OOB write).
+        arr = np.array([0.55, np.nan, 0.75, np.nan, 0.25])
+        counts = histogram(arr, 10, 0.0, 1.0)
+        expected = histogram(arr[~np.isnan(arr)], 10, 0.0, 1.0)
+        np.testing.assert_array_equal(counts, expected)
+        assert counts.sum() == 3
 
     def test_histogram_invalid_args_raise(self):
         with pytest.raises(ValueError):

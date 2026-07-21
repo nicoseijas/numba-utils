@@ -16,6 +16,8 @@ def bincount(arr, minlength=0):
 
     Complexity: O(n + max). Memory: O(max).
     """
+    if minlength < 0:
+        raise ValueError("bincount: minlength must be >= 0")
     mx = minlength - 1
     for i in range(arr.shape[0]):
         v = arr[i]
@@ -34,8 +36,8 @@ def histogram(arr, bins, lo, hi):
     """Histogram of 1-D ``arr`` over ``bins`` equal-width bins in ``[lo, hi]``.
 
     Single pass, no edge array: bin index is computed by scaling, which is
-    why this beats ``np.histogram``. Values outside ``[lo, hi]`` are
-    ignored; ``hi`` itself lands in the last bin (NumPy convention).
+    why this beats ``np.histogram``. Values outside ``[lo, hi]`` and NaN
+    are ignored; ``hi`` itself lands in the last bin (NumPy convention).
 
     Complexity: O(n + bins). Memory: O(bins).
     """
@@ -47,7 +49,9 @@ def histogram(arr, bins, lo, hi):
     scale = bins / (hi - lo)
     for i in range(arr.shape[0]):
         x = arr[i]
-        if x < lo or x > hi:
+        # Inverted-range test so NaN (which fails every comparison) is
+        # skipped: int(NaN) is INT64_MIN, an out-of-bounds index.
+        if not (lo <= x <= hi):
             continue
         idx = int((x - lo) * scale)
         if idx >= bins:

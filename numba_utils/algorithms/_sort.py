@@ -22,6 +22,7 @@ def insertion_sort(arr):
 
     O(n²), but with tiny constants and O(n) on nearly-sorted input —
     the right tool below ~64 elements or as a small-partition finisher.
+    Results are undefined if ``arr`` contains NaN.
 
     Complexity: O(n²) worst, O(n) nearly-sorted. Memory: O(1).
     """
@@ -41,7 +42,7 @@ def partial_sort(arr, k):
 
     ``arr[k:]`` contains the rest in arbitrary order. Returns ``arr``.
     The C++ ``std::partial_sort``: select with :func:`nth_element`, then
-    sort only the front.
+    sort only the front. Results are undefined if ``arr`` contains NaN.
 
     Complexity: average O(n + k log k). Memory: O(1).
     """
@@ -77,11 +78,15 @@ def counting_sort(arr):
             mn = v
         elif v > mx:
             mx = v
-    value_range = np.int64(mx) - np.int64(mn) + 1
-    if value_range > _COUNTING_SORT_MAX_RANGE:
+    # Modular difference (see _radix_key): the uint64 distance is exact
+    # even when mx - mn overflows int64 (e.g. INT64_MIN and INT64_MAX in
+    # the same array), so the range check cannot be fooled by wraparound.
+    dist = np.uint64(np.int64(mx) - np.int64(mn))
+    if dist >= np.uint64(_COUNTING_SORT_MAX_RANGE):
         raise ValueError(
             "counting_sort: value range too large (> 2**27), use radix_sort"
         )
+    value_range = np.int64(dist) + 1
     counts = np.zeros(value_range, np.int64)
     for i in range(n):
         counts[np.int64(arr[i]) - np.int64(mn)] += 1

@@ -53,7 +53,10 @@ def parallel_topk(arr, k):
     candidates = np.empty(n_threads * k, arr.dtype)
     counts = np.empty(n_threads, np.int64)
     for t in prange(n_threads):
-        start = t * chunk
+        # Ceil-division chunks overshoot n when the thread count is high
+        # relative to n (threads >= ~sqrt(n)): clamp so trailing threads
+        # get an empty range instead of a negative m.
+        start = min(t * chunk, n)
         end = min(start + chunk, n)
         m = end - start
         base = t * k

@@ -174,6 +174,17 @@ class TestCountingSort:
         with pytest.raises(ValueError):
             counting_sort(np.array([0, 2**40], dtype=np.int64))
 
+    def test_overflowing_range_raises(self):
+        # True ranges that overflow int64 must hit the friendly range
+        # check, not a wrapped-negative allocation (used to crash with
+        # an access violation on the INT64_MIN/INT64_MAX sentinel pair).
+        for arr in (
+            np.array([-(2**62), 2**62], dtype=np.int64),
+            np.array([-(2**63), 2**63 - 1], dtype=np.int64),
+        ):
+            with pytest.raises(ValueError):
+                counting_sort(arr)
+
 
 class TestRadixSort:
     def test_int64_with_negatives(self):

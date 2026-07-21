@@ -46,7 +46,9 @@ def parallel_histogram(arr, bins, lo, hi):
         end = min(start + chunk, n)
         for i in range(start, end):
             x = arr[i]
-            if x < lo or x > hi:
+            # Inverted-range test so NaN is skipped, as in the serial
+            # histogram: int(NaN) is INT64_MIN, an out-of-bounds index.
+            if not (lo <= x <= hi):
                 continue
             idx = int((x - lo) * scale)
             if idx >= bins:

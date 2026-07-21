@@ -1,3 +1,8 @@
+import os
+import subprocess
+import sys
+import textwrap
+
 import numpy as np
 import pytest
 
@@ -84,6 +89,18 @@ class TestParallelHistogram:
         with pytest.raises(ValueError):
             parallel_histogram(arr, 8, 1.0, 1.0)
 
+    def test_ignores_nan(self):
+        # An unfiltered NaN indexes out of the private counts row
+        # (int(NaN) is INT64_MIN) — must be skipped like out-of-range.
+        arr = RNG.normal(0.0, 1.0, LARGE)
+        arr[::1000] = np.nan
+        expected, _ = np.histogram(
+            arr[~np.isnan(arr)], bins=32, range=(-4.0, 4.0)
+        )
+        np.testing.assert_array_equal(
+            parallel_histogram(arr, 32, -4.0, 4.0), expected
+        )
+
 
 class TestParallelPrefixSum:
     def test_matches_cumsum_large_and_small(self):
@@ -136,3 +153,37 @@ class TestParallelTopk:
             parallel_topk(np.ones(10), 0)
         with pytest.raises(ValueError):
             parallel_topk(np.ones(10), 11)
+
+    def test_thread_count_overshooting_chunks(self):
+        # Ceil-division chunks overshoot n when threads >= ~sqrt(n)
+        # (e.g. 300 threads, n=65701 -> chunk=220, 299*220 > n): the
+        # trailing threads used to record negative counts, undersizing
+        # the merge buffer (heap corruption). Needs a thread count that
+        # can't be set in-process, so run in a subprocess — and verify
+        # by OUTPUT, not exit code: the threadpool can segfault at
+        # teardown after the work completed correctly.
+        code = textwrap.dedent(
+            """
+            import numpy as np
+            from numba_utils.parallel import parallel_topk
+            n = 65701
+            arr = np.random.default_rng(0).normal(0.0, 100.0, n)
+            got = np.sort(parallel_topk(arr, 10))
+            expected = np.sort(arr)[-10:]
+            assert np.array_equal(got, expected)
+            print("PARALLEL_TOPK_OK", flush=True)
+            """
+        )
+        env = dict(
+            os.environ, NUMBA_NUM_THREADS="300", NUMBA_UTILS_CACHE="0"
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=600,
+        )
+        assert "PARALLEL_TOPK_OK" in result.stdout, (
+            result.stdout + result.stderr
+        )
