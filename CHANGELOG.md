@@ -7,6 +7,94 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Resolution of the 0.4.0 audit verdict: two certification-primitive
+bugs (the worst place for a bug is inside the tools that certify other
+code), a false domain contract on the flagship, two fixes that had
+landed partial, the self-hiding criterion in the reach² guard, and the
+structural close of the stale-cache risk (#15).
+
+### Fixed
+
+- **testing** — `assert_within_se` / `assert_converges` rejected an
+  EXACTLY correct function: `np.mean` over n bit-identical copies of
+  0.1 carries pairwise-summation rounding, so the sample std was ~1
+  ULP instead of 0.0, the `se == 0.0` branch never fired, and the test
+  divided a rounding residual by rounding noise — a deterministic
+  ~5.4 SE failure blamed on the caller's seeds. Identical samples are
+  now detected structurally and compared to the target exactly, and a
+  mean within a few ULP of the target passes regardless of measured SE
+  (at that scale the deviation is arithmetic, not bias).
+- **testing** — `mutation_screams` certified dead checks through two
+  routes, both hit the two most common numba kernel shapes: an
+  in-place kernel returning `None` became `np.asarray(None)` → NaN →
+  "non-finite counts as a scream" with the mutation wired to NOTHING
+  (now a `TypeError`: return the mutated buffer), and NaN/inf present
+  identically in both runs counted as a scream with zero actual
+  change (positions where both runs agree — including on NaN/inf —
+  now contribute nothing; a non-finite deviation can only come from a
+  real difference).
+- **testing** — `assert_no_reweight_bias`'s k·SE criterion self-hid: a
+  bug that also inflates estimator variance widens its own tolerance
+  band, and the guard passed the library's own kernel at `n_sub=5` — a
+  configuration too noisy to distinguish the exact weighted mean from
+  the double-weighted one it exists to catch. A pass now requires
+  k·SE below half that gap; otherwise the assert fails as
+  INCONCLUSIVE instead of certifying nothing.
+- **algorithms** — `disjoint_rank_aggregate`'s published envelope
+  ("any int64, K ≤ 12") was not satisfiable: the positional subset
+  encoding capped K=12 at 28 distinct key values, so a 52-card deck
+  was rejected at K ≥ 11. A combinadic encoding (combinatorial number
+  system — a K!-wider envelope for the same int64 budget) now kicks in
+  where the positional one overflows: the cap at K=12 rises 28 → 158
+  (a full deck fits at every K ≤ 12), at K=5 3775 → 9841. The
+  overflow error states the actual cap for your K.
+- **decorators** — the #14 boundscheck→`cache=False` warning fired
+  only for the per-call `cache=True` kwarg; forced via `configure()`
+  or `NUMBA_UTILS_CACHE=1` it was dropped in silence — precisely the
+  deliberate, environment-level request the warning exists for. Both
+  global sources now warn (and a global `cache=False` correctly
+  silences the per-call warning: that kwarg was already dead).
+- **parallel** — the #12 bins cap bounds ONE counts row; the parallel
+  histogram allocates `n_threads` of them, so a `bins` the cap accepts
+  produced a working set in the hundreds of GB. Past a 1 GiB
+  private-table budget `parallel_histogram` now delegates to the
+  serial kernel (bit-exact; past that point the O(threads·bins) merge
+  dominates the parallel gain anyway).
+
+### Added
+
+- **cache_locator** — `ContentHashLocator`, the structural close of
+  #15: Numba stamps cached binaries with `(mtime, size)`, and
+  mtime-preserving deployments (`docker COPY`, `tar -x`, `rsync -a`,
+  `cp -p`) plus a size collision make a new release silently run the
+  previous version's binary — reproduced, not theorized. The locator
+  stamps by SHA-256 of the source bytes instead; opt in via Numba's
+  official hook (`NUMBA_CACHE_LOCATOR_CLASSES`), set before the first
+  import.
+
+### Docs
+
+- docs/numba-cache.md — the upgrade section previously implied a
+  normal pip upgrade could load stale binaries (it can't: pip rewrites
+  the files, refreshing the mtime) and claimed `diagnostics.check`
+  detects the situation (it flags caching enabled; it cannot see a
+  stale binary). Rewritten around the real hazard — mtime-preserving
+  deployments — and the two fixes (deploy hygiene vs
+  `ContentHashLocator`).
+- **stats** — `weighted_mc_mean`'s "O(1/n_sub) bias" framing
+  undersold the risk: the ratio estimator's bias is driven by weight
+  concentration and is not small in concentrated regimes (measured:
+  −9% relative at `n_sub=5` on the guard's fixture, −98% with a
+  single dominant weight — the uniform subsample misses the mass
+  carriers). The docstring now says so and points to the
+  now-conclusive `assert_no_reweight_bias`.
+- Record correction for the 0.4.0 entry: "3.2x over dense one-shot"
+  does not transfer to every shape — in a K=5, 400×3000 workload the
+  one-shot LOST to a pure-NumPy dense reference (~80% of its time is
+  the build). The number that matters is the iterative one:
+  `eval` per weight vector on a prebuilt topology. Docstrings and
+  docs/modules.md now lead with that.
+
 ## [0.4.0] - 2026-07-21
 
 Phase 4, complete: contributions from a production PLO5 CFR solver.
