@@ -14,6 +14,7 @@ the serial version in the last bits. Where that matters, compare against
 the serial counterpart (``numba_utils.testing.assert_equivalent``).
 """
 
+from numba_utils.parallel._chunked import chunked_reduce
 from numba_utils.parallel._histogram import parallel_histogram
 from numba_utils.parallel._reduce import parallel_reduce, parallel_sum
 from numba_utils.parallel._scan import parallel_prefix_sum
@@ -23,6 +24,7 @@ SERIAL_THRESHOLD = 1 << 16
 
 __all__ = [
     "SERIAL_THRESHOLD",
+    "chunked_reduce",
     "parallel_histogram",
     "parallel_prefix_sum",
     "parallel_reduce",

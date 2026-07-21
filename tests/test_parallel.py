@@ -8,6 +8,7 @@ import pytest
 
 from numba_utils.parallel import (
     SERIAL_THRESHOLD,
+    chunked_reduce,
     parallel_histogram,
     parallel_prefix_sum,
     parallel_reduce,
@@ -187,3 +188,62 @@ class TestParallelTopk:
         assert "PARALLEL_TOPK_OK" in result.stdout, (
             result.stdout + result.stderr
         )
+
+
+class TestChunkedReduce:
+    def test_bit_exact_serial_vs_parallel(self):
+        from numba_utils.random import philox_uniform
+
+        @chunked_reduce
+        def mc_sum(chunk_id, start, end):
+            acc = 0.0
+            for i in range(start, end):
+                acc += philox_uniform(99, i)
+            return acc
+
+        for n_chunks in (1, 3, 16, 64):
+            par = mc_sum(200_000, n_chunks)
+            ser = mc_sum(200_000, n_chunks, parallel=False)
+            assert par == ser  # bit-identical, not approx
+
+    def test_result_reasonable(self):
+        from numba_utils.random import philox_uniform
+
+        @chunked_reduce
+        def mc_sum(chunk_id, start, end):
+            acc = 0.0
+            for i in range(start, end):
+                acc += philox_uniform(7, i)
+            return acc
+
+        n = 100_000
+        assert abs(mc_sum(n, 8) / n - 0.5) < 0.01
+
+    def test_empty_and_chunks_exceeding_items(self):
+        @chunked_reduce
+        def count(chunk_id, start, end):
+            return float(end - start)
+
+        assert count(0, 4) == 0.0
+        assert count(5, 16) == 5.0  # more chunks than items
+        assert count(5, 16, parallel=False) == 5.0
+
+    def test_jitted_drivers_exposed(self):
+        @chunked_reduce
+        def count(chunk_id, start, end):
+            return float(end - start)
+
+        assert count.serial(10, 3) == 10.0
+        assert count.parallel(10, 3) == 10.0
+
+    def test_invalid_args_raise(self):
+        @chunked_reduce
+        def count(chunk_id, start, end):
+            return 0.0
+
+        with pytest.raises(ValueError):
+            count(-1, 4)
+        with pytest.raises(ValueError):
+            count(10, 0)
+        with pytest.raises(TypeError):
+            chunked_reduce(42)

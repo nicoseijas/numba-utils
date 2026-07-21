@@ -4,6 +4,7 @@ from numba import njit
 
 from numba_utils.algorithms import (
     argmax2,
+    combination_table,
     counting_sort,
     lexsort,
     stable_argsort,
@@ -283,3 +284,47 @@ class TestRadixSort:
         np.testing.assert_array_equal(
             radix_sort(np.array([7], dtype=np.int64)), [7]
         )
+
+
+class TestCombinationTable:
+    def test_matches_itertools(self):
+        import itertools
+
+        for n, k in [(5, 2), (5, 3), (4, 2), (6, 1), (6, 6), (7, 4)]:
+            table = combination_table(n, k)
+            expected = list(itertools.combinations(range(n), k))
+            assert table.shape == (len(expected), k)
+            assert [tuple(row) for row in table.tolist()] == expected
+
+    def test_shape_is_the_contract(self):
+        # the bug class this kills: hardcoding C(5,2)=10 breaks the day
+        # the board has 4 cards; the table's own length never does
+        assert combination_table(5, 2).shape[0] == 10
+        assert combination_table(4, 2).shape[0] == 6
+
+    def test_symmetric_k_does_not_false_trip_the_cap(self):
+        # C(60, 58) = 1770, but the naive partial products pass through
+        # C(60, 30) ~ 1.18e17 — must not raise
+        table = combination_table(60, 58)
+        assert table.shape == (1770, 58)
+
+    def test_k_zero_and_k_n(self):
+        assert combination_table(3, 0).shape == (1, 0)
+        np.testing.assert_array_equal(combination_table(3, 3), [[0, 1, 2]])
+
+    def test_errors(self):
+        with pytest.raises(ValueError):
+            combination_table(3, 4)
+        with pytest.raises(ValueError):
+            combination_table(-1, 0)
+        with pytest.raises(ValueError):
+            combination_table(200, 100)  # C(200,100) >> 2**27
+
+    def test_usable_inside_njit(self):
+        @njit
+        def count_pairs(n):
+            table = combination_table(n, 2)
+            return table.shape[0]
+
+        assert count_pairs(5) == 10
+        assert count_pairs(4) == 6

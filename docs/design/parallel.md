@@ -55,3 +55,16 @@ not a bug. The module docstring says so, integer paths are tested for
 exactness, and `parallel_histogram` — where exactness is achievable —
 promises and tests bit-exactness. Where it isn't achievable, the
 contract says so instead of pretending.
+
+## Why chunked_reduce fixes chunks, not threads
+
+`chunked_reduce` promises bit-identical serial and parallel results.
+That is only possible if the partition of work is part of the
+*contract*: chunk boundaries derive from `(n_items, n_chunks)` alone —
+never from `get_num_threads()` — and per-chunk partials merge serially
+in chunk order. Threads decide only WHO computes a chunk, never WHAT a
+chunk is. Changing `n_chunks` legitimately changes float rounding (a
+different partition), so experiments pin it. Paired with the
+counter-based RNG (`philox_uniform(key, i)` over the chunk's index
+range), the result is also independent of scheduling — the property an
+A/B harness needs to switch modes without re-validating.

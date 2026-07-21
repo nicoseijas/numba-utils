@@ -28,6 +28,7 @@ verbatim.
 - Selection: `nth_element` (in-place, C++ semantics), `quickselect`, `fast_argpartition`
 - `topk` — heap path for small k, quickselect for large; `argmax2` (index AND value)
 - Sorts: `insertion_sort`, `partial_sort` (in-place); `counting_sort`, `radix_sort` (new array; integer dtypes, honest loss vs NumPy's SIMD sort on full-range keys); `stable_argsort` (the stable-argsort spelling that works in nopython), `lexsort` (`np.lexsort` for `@njit` — Numba doesn't implement it; takes a 2-D array, last row is the primary key)
+- `combination_table(n, k)` — the C(n, k) index table; loop over `table.shape[0]` instead of hardcoding combo counts (the evaluator bug class)
 
 ## Performance
 
@@ -37,7 +38,11 @@ Complete parallel operations, not prange wrappers ([docs](parallelism.md),
 [design](design/parallel.md)): `parallel_sum`, `parallel_reduce`
 (per-index kernel decorator), `parallel_histogram` (bit-exact),
 `parallel_prefix_sum`, `parallel_topk`. All fall back to serial below
-`SERIAL_THRESHOLD`.
+`SERIAL_THRESHOLD`. Plus `chunked_reduce` — one per-chunk kernel,
+serial and parallel drivers with **bit-identical** results: chunk
+boundaries depend only on `(n_items, n_chunks)`, never on thread
+count; pair the chunk index with `philox_uniform` for runs that are
+reproducible by construction.
 
 ### `numba_utils.profiling`
 
@@ -94,9 +99,15 @@ NaN values and NaN/negative weights up front).
 
 Over Numba's nopython RNG, which is separate from NumPy's — seed it
 with `seed()` ([design](design/rng.md)): `shuffle`, `permutation`,
-`choice`, `reservoir_sampling` (Algorithm R), `weighted_sampling`, and
+`choice`, `reservoir_sampling` (Algorithm R), `sample_without_replacement`
+and the in-place `partial_shuffle` (partial Fisher–Yates, the
+zero-allocation repeated-draw MC primitive), `weighted_sampling`, and
 the Walker alias method as `alias_setup` / `alias_draw` /
-`alias_sample`.
+`alias_sample`. Plus the stateless counter-based generator
+(Philox4x64-10, bit-identical to `np.random.Philox`):
+`philox_uniform` / `philox_uniforms` / `philox_randint` /
+`philox4x64` — pure functions of `(key, counter)`, reproducible
+regardless of threads, processes or call order.
 
 ## Developer tools
 
@@ -105,6 +116,7 @@ the Walker alias method as `alias_setup` / `alias_draw` /
 - `assert_equivalent(reference, candidate, inputs)` — per-case array copies, failing case named, empty generators fail
 - `random_arrays` — generated cases plus the edges that break kernels
 - `assert_close`, `deterministic_rng` (pins all three RNG worlds)
+- Stochastic asserts: `assert_reproducible` (same seed → bit-identical) and `assert_converges` (different seeds → within N standard errors of the truth, false-positive rate documented)
 
 Strategy: [testing.md](testing.md).
 

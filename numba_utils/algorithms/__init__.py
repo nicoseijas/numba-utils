@@ -1,5 +1,6 @@
 """Selection and sorting algorithms specialized for Numba."""
 
+from numba_utils.algorithms._combinatorics import combination_table
 from numba_utils.algorithms._select import (
     fast_argpartition,
     nth_element,
@@ -17,6 +18,7 @@ from numba_utils.algorithms._topk import argmax2, topk
 
 __all__ = [
     "argmax2",
+    "combination_table",
     "counting_sort",
     "fast_argpartition",
     "insertion_sort",

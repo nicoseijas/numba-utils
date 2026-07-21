@@ -8,6 +8,7 @@ Reproducibility: seed, sizes and iteration counts are fixed below.
 
 from __future__ import annotations
 
+import itertools
 import platform
 import sys
 
@@ -15,6 +16,7 @@ import numba
 import numpy as np
 
 from numba_utils import (
+    combination_table,
     compare,
     counting_sort,
     cumulative_sum,
@@ -57,6 +59,10 @@ def np_histogram_counts(arr, bins, lo, hi):
 
 def np_stable_argsort(arr):
     return np.argsort(arr, kind="stable")
+
+
+def py_combination_table(n, k):
+    return list(itertools.combinations(range(n), k))
 
 
 def main() -> None:
@@ -112,6 +118,10 @@ def main() -> None:
         (
             "lexsort 3 keys (1,000,000 i64)",
             np.lexsort, lexsort, (lex_keys,),
+        ),
+        (
+            "combination_table C(30,4)=27,405 (vs itertools)",
+            py_combination_table, combination_table, (30, 4),
         ),
     ]
 

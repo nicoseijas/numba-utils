@@ -29,6 +29,53 @@ def reservoir_sampling(arr, k):
 
 
 @cached_njit
+def partial_shuffle(arr, k):
+    """Rearrange ``arr`` IN PLACE so ``arr[:k]`` is a uniform sample of
+    its elements WITHOUT replacement; returns ``arr``.
+
+    Partial Fisher–Yates: exactly ``k`` swaps and ``k`` random draws —
+    not a full shuffle. This is the zero-allocation repeated-draw
+    Monte Carlo primitive: keep one scratch deck and call this per
+    iteration instead of copying or reshuffling the whole array.
+    ``arr[k:]`` holds the rest in arbitrary order. Uses Numba's
+    per-thread global RNG (seed with :func:`numba_utils.seed`); for
+    thread-count-independent reproducibility drive indices with the
+    ``philox_*`` functions instead.
+
+    Complexity: O(k). Memory: O(1).
+    """
+    n = arr.shape[0]
+    if k < 0 or k > n:
+        raise ValueError("partial_shuffle: k must be in [0, len(arr)]")
+    for i in range(k):
+        j = np.random.randint(i, n)
+        arr[i], arr[j] = arr[j], arr[i]
+    return arr
+
+
+@cached_njit
+def sample_without_replacement(arr, k):
+    """``k`` elements of ``arr`` sampled uniformly WITHOUT replacement,
+    as a new array. Input untouched.
+
+    Copies once, then partial Fisher–Yates (``k`` swaps). Compared to
+    :func:`reservoir_sampling` (one pass over all n, n random draws),
+    this wins when ``k << n`` and the array is materialized — the
+    common "deal k cards from a deck" case. In a hot loop, skip the
+    per-call copy: keep a scratch array and use
+    :func:`partial_shuffle` directly.
+
+    Complexity: O(n) copy + O(k) swaps. Memory: O(n).
+    """
+    n = arr.shape[0]
+    if k < 1 or k > n:
+        raise ValueError("sample_without_replacement: k must be in [1, len(arr)]")
+    tmp = arr.copy()
+    partial_shuffle(tmp, k)
+    return tmp[:k].copy()
+
+
+@cached_njit
 def weighted_sampling(weights, size):
     """``size`` indices in ``[0, n)`` sampled WITH replacement, with
     probability proportional to ``weights``.

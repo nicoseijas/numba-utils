@@ -24,6 +24,8 @@ from numba_utils import (
     alias_setup,
     compare,
     counter,
+    philox_uniforms,
+    sample_without_replacement,
     seed,
     shuffle,
     weighted_sampling,
@@ -103,6 +105,17 @@ def main() -> None:
     def np_counter(arr):
         return np.unique(arr, return_counts=True)
 
+    def np_philox_uniforms(key, counter_, size):
+        # the NumPy counter-based workflow: a fresh Philox stream per
+        # (key, counter), as a per-chunk MC worker would build it
+        bitgen = np.random.Philox(counter=[counter_, 0, 0, 0], key=[key, 0])
+        return np.random.Generator(bitgen).random(size)
+
+    deck = np.arange(52, dtype=np.int64)
+
+    def np_sample_wo(arr, k):
+        return rng.choice(arr, k, replace=False)
+
     cases = [
         (
             f"shuffle ({N_SHUFFLE:,} f64)",
@@ -121,6 +134,14 @@ def main() -> None:
         (
             f"counter ({N_COUNT:,} i64, 1k distinct)",
             np_counter, counter, (count_arr,),
+        ),
+        (
+            "philox_uniforms (1,000,000 f64, fresh stream)",
+            np_philox_uniforms, philox_uniforms, (77, 0, 1_000_000),
+        ),
+        (
+            "sample_without_replacement 7 of 52",
+            np_sample_wo, sample_without_replacement, (deck, 7),
         ),
     ]
 

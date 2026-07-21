@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Phase 3: Monte Carlo primitives, driven by the first real-user
+feedback (a production MC equity engine evaluating the library).
+
+### Added
+
+- **random** — counter-based RNG: `philox4x64` (raw Philox4x64-10
+  block), `philox_uniform`, `philox_uniforms` (bulk, block-packed,
+  `out=`), `philox_randint` (multiply-shift bound, bias < n/2**64,
+  documented). Pure functions of `(key, counter)`: reproducible
+  regardless of threads, processes or call order — the primitive that
+  prevents "result depends on how many workers ran" artifacts. Tests
+  assert BIT EQUALITY against `np.random.Philox` (NumPy increments the
+  counter before generating; the tests account for the offset).
+- **random** — `partial_shuffle` (in-place partial Fisher–Yates: k
+  swaps on a reusable scratch array, the zero-allocation repeated-draw
+  MC primitive) and `sample_without_replacement` (copying wrapper).
+- **algorithms** — `combination_table(n, k)`: the C(n, k) index table
+  in lexicographic order; looping over `table.shape[0]` kills the
+  hardcoded-combo-count bug class endemic to hand evaluators. Count
+  computed over min(k, n-k) so symmetric cases (C(60, 58)) don't trip
+  the row cap at their partial-product peak.
+- **parallel** — `chunked_reduce`: one per-chunk kernel, serial and
+  parallel drivers with bit-identical results (chunk boundaries depend
+  only on `(n_items, n_chunks)`, never on thread count; partials merge
+  serially in chunk order). Jitted drivers exposed as
+  `.serial`/`.parallel`. Pairs with Philox for runs reproducible by
+  construction; 11.7x over its own serial driver at 24 threads.
+- **testing** — stochastic asserts: `assert_reproducible` (same seed →
+  bit-identical across runs) and `assert_converges` (differently
+  seeded runs within N standard errors of the truth; zero-variance
+  results detected as "seeds not reaching the sampler"; ~0.27%
+  false-positive rate at the default 3 sigma, documented).
+
+### Changed
+
+- `njit_fast` docstring now says explicitly that integer-only kernels
+  gain nothing from `fastmath` — `cached_njit` is the right pick
+  there.
+
 ## [0.2.0] - 2026-07-21
 
 Phase 2 complete: two new modules (`graph/`, `stats/`), dtype-generic

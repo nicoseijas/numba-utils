@@ -69,3 +69,17 @@ the edge cases that actually break kernels. `deterministic_rng` pins
 NumPy's legacy state, a NumPy `Generator`, and Numba's separate
 nopython RNG in one call. During development, `@boundscheck` with
 `NUMBA_UTILS_DEV=1` turns silent corruption into an `IndexError`.
+
+## Testing stochastic kernels
+
+Monte Carlo code needs two guarantees that `assert_equivalent` cannot
+give, and conflating them produces tests that are flaky or vacuous:
+
+- `assert_reproducible(fn, seed=...)` — same seed, bit-identical
+  result across runs (via `deterministic_rng`). Fails when `fn` draws
+  from anything unseeded: thread-scheduling-dependent RNG, wall clock.
+- `assert_converges(fn, truth, n_runs=..., sigma=3)` — differently
+  seeded runs must land within `sigma` standard errors of the truth.
+  This is a statistical test: at `sigma=3` a correct implementation
+  still fails ~0.27% of the time — that rate is part of the contract,
+  and tightening to 2 sigma (4.6%) is how CI gets flaky.

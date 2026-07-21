@@ -15,10 +15,16 @@ memory silently instead of crashing)::
 
 from numba_utils.testing._asserts import assert_close, assert_equivalent
 from numba_utils.testing._generators import deterministic_rng, random_arrays
+from numba_utils.testing._stochastic import (
+    assert_converges,
+    assert_reproducible,
+)
 
 __all__ = [
     "assert_close",
+    "assert_converges",
     "assert_equivalent",
+    "assert_reproducible",
     "deterministic_rng",
     "random_arrays",
 ]

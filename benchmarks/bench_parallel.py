@@ -12,6 +12,7 @@ import numpy as np
 from numba import get_num_threads
 
 from numba_utils import (
+    chunked_reduce,
     compare,
     cumulative_sum,
     histogram,
@@ -19,8 +20,19 @@ from numba_utils import (
     parallel_prefix_sum,
     parallel_sum,
     parallel_topk,
+    philox_uniform,
     topk,
 )
+
+N_CHUNKS = 256
+
+
+@chunked_reduce
+def _mc_philox_sum(chunk_id, start, end):
+    acc = 0.0
+    for i in range(start, end):
+        acc += philox_uniform(42, i)
+    return acc
 
 SEED = 42
 N = 20_000_000
@@ -53,6 +65,11 @@ def main() -> None:
         (
             f"parallel_topk k={K} ({N:,} f64) vs serial topk",
             topk, parallel_topk, (floats, K),
+        ),
+        (
+            f"chunked_reduce MC ({N:,} philox draws, {N_CHUNKS} chunks) "
+            "vs its serial driver",
+            _mc_philox_sum.serial, _mc_philox_sum.parallel, (N, N_CHUNKS),
         ),
     ]
 

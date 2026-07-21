@@ -63,6 +63,8 @@ def njit_fast(
 
     ``fastmath=True`` relaxes IEEE 754 semantics (reassociation, no signed
     zeros/NaN guarantees); don't use it where exact float semantics matter.
+    Integer-only kernels (bitmasks, table lookups) gain nothing from
+    ``fastmath`` — plain :func:`cached_njit` is the right pick there.
     """
     return _apply_njit(
         func, {"cache": True, "fastmath": True, "nogil": True}, overrides

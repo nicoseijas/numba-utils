@@ -5,7 +5,9 @@ from numba import njit
 from numba_utils import choice, cumulative_sum, insertion_sort
 from numba_utils.testing import (
     assert_close,
+    assert_converges,
     assert_equivalent,
+    assert_reproducible,
     deterministic_rng,
     random_arrays,
 )
@@ -116,3 +118,62 @@ class TestDeterministicRng:
         np.testing.assert_array_equal(
             choice(np.arange(100, dtype=np.float64), 10), numba_a
         )
+
+
+class TestAssertReproducible:
+    def test_passes_for_seeded_function(self):
+        def draw():
+            return choice(np.arange(100, dtype=np.float64), 10)
+
+        result = assert_reproducible(draw, seed=3)
+        assert result.shape == (10,)
+
+    def test_fails_for_unseeded_state(self):
+        state = {"n": 0}
+
+        def impure():
+            state["n"] += 1
+            return state["n"]
+
+        with pytest.raises(AssertionError):
+            assert_reproducible(impure)
+
+    def test_validation(self):
+        with pytest.raises(TypeError):
+            assert_reproducible(42)
+        with pytest.raises(ValueError):
+            assert_reproducible(lambda: 0, runs=1)
+
+
+class TestAssertConverges:
+    def test_passes_for_correct_estimator(self):
+        def estimate_mean():
+            return float(np.random.random(4000).mean())
+
+        mean, se = assert_converges(estimate_mean, 0.5, n_runs=20)
+        assert abs(mean - 0.5) < 0.05
+        assert se > 0
+
+    def test_fails_for_biased_estimator(self):
+        def biased():
+            return float(np.random.random(4000).mean()) + 0.1
+
+        with pytest.raises(AssertionError):
+            assert_converges(biased, 0.5, n_runs=20)
+
+    def test_zero_variance_detected(self):
+        with pytest.raises(AssertionError, match="identical"):
+            assert_converges(lambda: 0.4, 0.5, n_runs=5)
+        # zero variance but exactly right is accepted
+        mean, se = assert_converges(lambda: 0.5, 0.5, n_runs=5)
+        assert (mean, se) == (0.5, 0.0)
+
+    def test_validation(self):
+        with pytest.raises(ValueError):
+            assert_converges(lambda: 0.0, 0.0, n_runs=1)
+        with pytest.raises(ValueError):
+            assert_converges(lambda: 0.0, 0.0, sigma=0.0)
+        with pytest.raises(ValueError):
+            assert_converges(lambda: 0.0, np.inf)
+        with pytest.raises(AssertionError, match="non-finite"):
+            assert_converges(lambda: np.nan, 0.5, n_runs=3)

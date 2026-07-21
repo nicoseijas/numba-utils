@@ -35,3 +35,34 @@ Without-replacement sampling that needs one pass, O(k) memory, and no
 shuffle of the input — the right primitive when n is huge or streaming.
 For with-replacement, `choice` is the direct O(size) answer. The two
 cover both replacement regimes with the minimal API for each.
+
+## Why a counter-based generator (Philox), and why 4x64-10
+
+A stateful global RNG makes Monte Carlo results depend on execution
+order: how many chunks ran, on how many threads, in what sequence —
+the classic "cold worker gives a different answer" artifact. A
+counter-based generator removes the state entirely:
+`philox_uniform(key, counter)` is a pure function, so assigning each
+work unit its own counter range makes the run reproducible by
+construction, on any thread count.
+
+Philox4x64-10 specifically because it is the exact algorithm behind
+`np.random.Philox` — which gives the implementation something rare for
+an RNG: an installable, independent reference to assert **bit
+equality** against, in CI, forever (the test accounts for NumPy
+incrementing the counter before generating its first block). The
+64-bit multiply-high has no native uint128 in nopython, so it is
+composed from 32-bit limbs.
+
+`philox_randint` bounds by multiply-shift: the bias is below
+`n / 2**64` — documented rather than hidden, and negligible against
+any Monte Carlo variance.
+
+## Why partial Fisher–Yates next to reservoir sampling
+
+`reservoir_sampling` is one pass over ALL n with n random draws — the
+streaming primitive. The "deal k cards from a materialized deck" loop
+wants the opposite trade: `partial_shuffle` does exactly k swaps and k
+draws on a scratch array the caller reuses, zero allocation per
+iteration. Same task, different regime; each docstring points at the
+other.

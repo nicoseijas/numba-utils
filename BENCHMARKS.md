@@ -15,6 +15,7 @@ Seed 42, 11 runs after 2 warmup runs, mean times.
 | radix_sort range<2^24 (5,000,000 i64) | 52.19 ms | 40.17 ms | 1.30x |
 | counting_sort range<1000 (5,000,000 i64) | 27.05 ms | 13.87 ms | 1.95x |
 | unique_sorted (5,000,000 i64, sorted) | 27.75 ms | 1.63 ms | 16.99x |
+| combination_table C(30,4)=27,405 (vs itertools) | 0.87 ms | 0.14 ms | 6.39x |
 | stable_argsort (5,000,000 i64, many ties) | 254.99 ms | 1010.74 ms | 0.25x |
 | lexsort 3 keys (1,000,000 i64) | 72.82 ms | 190.13 ms | 0.38x |
 
@@ -33,6 +34,8 @@ more than the difference above.
 | weighted_sampling (10,000 w, 100,000 draws) (vs NumPy) | 6.57 ms | 5.91 ms | 1.11x |
 | alias_sample (setup amortized, 100,000 draws) (vs NumPy) | 6.48 ms | 3.31 ms | 1.96x |
 | counter (1,000,000 i64, 1k distinct) (vs NumPy) | 5.72 ms | 24.25 ms | 0.24x |
+| philox_uniforms (1,000,000 f64, fresh stream) (vs NumPy Philox) | 19.62 ms | 4.09 ms | 4.80x |
+| sample_without_replacement 7 of 52 (vs Generator.choice, 1001 runs) | 4.6 µs | 0.6 µs | 7.59x |
 | PriorityQueue push+pop (50,000) (vs heapq) | 17.02 ms | 4.39 ms | 3.88x |
 | SparseSet churn (200,000 ops) (vs Python set) | 15.46 ms | 5.09 ms | 3.04x |
 
@@ -46,8 +49,9 @@ more than the difference above.
 | parallel_histogram 64 bins (20,000,000 f64) vs serial histogram | 18.43 ms | 3.25 ms | 5.68x |
 | parallel_prefix_sum (20,000,000 f64) vs serial cumulative_sum | 28.04 ms | 20.42 ms | 1.37x |
 | parallel_topk k=100 (20,000,000 f64) vs serial topk | 11.58 ms | 2.50 ms | 4.63x |
+| chunked_reduce MC (20,000,000 philox draws, 256 chunks) vs its serial driver | 145.51 ms | 12.41 ms | 11.73x |
 
-Parallel float reductions reorder operations; results can differ from serial in the last bits (parallel_histogram is bit-exact). Gains depend on core count and memory bandwidth.
+Parallel float reductions reorder operations; results can differ from serial in the last bits (parallel_histogram is bit-exact, and chunked_reduce is bit-exact between its own serial and parallel drivers at fixed n_chunks). Gains depend on core count and memory bandwidth. The philox_uniforms baseline is NumPy's own counter-based workflow (a fresh Philox stream per key/counter, as a per-chunk MC worker builds it).
 
 ## Graph
 

@@ -7,8 +7,14 @@ from numba_utils.random import (
     alias_sample,
     alias_setup,
     choice,
+    partial_shuffle,
     permutation,
+    philox4x64,
+    philox_randint,
+    philox_uniform,
+    philox_uniforms,
     reservoir_sampling,
+    sample_without_replacement,
     seed,
     shuffle,
     weighted_sampling,
@@ -192,3 +198,120 @@ class TestAlias:
         seed(9)
         draws = draw_many(np.array([1.0, 1.0]), 10)
         assert draws.shape == (10,)
+
+
+class TestPhilox:
+    def test_block_matches_numpy_philox_exactly(self):
+        # NumPy increments the counter BEFORE generating, so its first
+        # raw block for counter=[c,0,0,0] is our block at counter c+1.
+        # Values >= 2**63 go through np.uint64: Numba's dispatcher
+        # types plain Python ints as int64.
+        for key, ctr in [(0, 0), (42, 123), (2**63, 2**40), (7, 2**62)]:
+            ref = np.random.Philox(counter=[ctr, 0, 0, 0], key=[key, 0])
+            expected = ref.random_raw(8).tolist()
+            k = np.uint64(key)
+            ours = list(philox4x64(k, 0, np.uint64(ctr + 1), 0, 0, 0)) + list(
+                philox4x64(k, 0, np.uint64(ctr + 2), 0, 0, 0)
+            )
+            assert [int(x) for x in ours] == expected
+
+    def test_uniform_range_and_determinism(self):
+        values = [philox_uniform(9, c) for c in range(1000)]
+        assert all(0.0 <= v < 1.0 for v in values)
+        assert values == [philox_uniform(9, c) for c in range(1000)]
+        assert 0.4 < np.mean(values) < 0.6
+
+    def test_streams_are_independent_of_call_order(self):
+        forward = [philox_uniform(3, c) for c in range(50)]
+        backward = [philox_uniform(3, c) for c in reversed(range(50))]
+        assert forward == backward[::-1]
+
+    def test_different_keys_differ(self):
+        a = [philox_uniform(1, c) for c in range(100)]
+        b = [philox_uniform(2, c) for c in range(100)]
+        assert a != b
+
+    def test_uniforms_split_across_counters(self):
+        # consuming ceil(size/4) blocks: [ctr, 4 values] + [ctr+1, 4]
+        # must equal one call of 8 starting at ctr
+        whole = philox_uniforms(5, 100, 8)
+        first = philox_uniforms(5, 100, 4)
+        second = philox_uniforms(5, 101, 4)
+        np.testing.assert_array_equal(whole, np.concatenate([first, second]))
+
+    def test_uniforms_out_and_errors(self):
+        out = np.empty(6)
+        result = philox_uniforms(1, 0, 6, out)
+        assert result is out
+        with pytest.raises(ValueError):
+            philox_uniforms(1, 0, -1)
+        with pytest.raises(ValueError):
+            philox_uniforms(1, 0, 3, np.empty(4))
+
+    def test_randint_range_and_errors(self):
+        draws = [philox_randint(11, c, 52) for c in range(2000)]
+        assert all(0 <= d < 52 for d in draws)
+        assert len(set(draws)) == 52
+        assert philox_randint(11, 7, 1) == 0
+        with pytest.raises(ValueError):
+            philox_randint(11, 0, 0)
+
+    def test_callable_from_jitted_code(self):
+        @njit
+        def mc_mean(key, n):
+            acc = 0.0
+            for i in range(n):
+                acc += philox_uniform(key, i)
+            return acc / n
+
+        assert 0.45 < mc_mean(21, 10_000) < 0.55
+        assert mc_mean(21, 10_000) == mc_mean(21, 10_000)
+
+
+class TestPartialShuffle:
+    def test_prefix_is_sample_without_replacement(self):
+        seed(3)
+        arr = np.arange(52, dtype=np.int64)
+        partial_shuffle(arr, 5)
+        assert len(set(arr[:5].tolist())) == 5
+        assert sorted(arr.tolist()) == list(range(52))
+
+    def test_k_zero_is_noop(self):
+        arr = np.arange(5, dtype=np.int64)
+        partial_shuffle(arr, 0)
+        np.testing.assert_array_equal(arr, np.arange(5))
+
+    def test_uniformity_of_first_slot(self):
+        seed(11)
+        counts = np.zeros(4, np.int64)
+        for _ in range(4000):
+            arr = np.arange(4, dtype=np.int64)
+            partial_shuffle(arr, 1)
+            counts[arr[0]] += 1
+        assert counts.min() > 800  # expected 1000 each
+
+    def test_k_out_of_range_raises(self):
+        with pytest.raises(ValueError):
+            partial_shuffle(np.arange(3, dtype=np.int64), 4)
+
+
+class TestSampleWithoutReplacement:
+    def test_no_duplicates_and_input_untouched(self):
+        seed(5)
+        arr = np.arange(52, dtype=np.int64)
+        out = sample_without_replacement(arr, 7)
+        assert out.shape == (7,)
+        assert len(set(out.tolist())) == 7
+        np.testing.assert_array_equal(arr, np.arange(52))
+
+    def test_full_draw_is_permutation(self):
+        seed(9)
+        out = sample_without_replacement(np.arange(10, dtype=np.int64), 10)
+        assert sorted(out.tolist()) == list(range(10))
+
+    def test_k_out_of_range_raises(self):
+        arr = np.arange(3, dtype=np.int64)
+        with pytest.raises(ValueError):
+            sample_without_replacement(arr, 0)
+        with pytest.raises(ValueError):
+            sample_without_replacement(arr, 4)
