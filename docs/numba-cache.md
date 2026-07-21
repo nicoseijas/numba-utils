@@ -37,17 +37,39 @@ If that pattern matches, stop debugging your kernel: it's the cache.
 ## The fix
 
 Disable caching globally — this is a policy decision about the
-environment, so it overrides everything, including explicit
-`cache=True` arguments:
+environment. One import-time detail decides which switch you need:
+numba-utils' own kernels are compiled with `cache=True` the moment
+`numba_utils` is imported, so only a switch that is already active at
+that point can reach them.
+
+**The full kill-switch is the environment variable, set before the
+first import:**
+
+```
+NUMBA_UTILS_CACHE=0                # exported in the shell / CI / farm
+```
+
+or, equivalently, at the very top of the entry script:
+
+```python
+import os
+os.environ["NUMBA_UTILS_CACHE"] = "0"   # BEFORE importing numba_utils
+```
+
+Either form overrides everything — explicit `cache=True` arguments,
+your kernels, and the library's own — because the environment is read
+each time a function is decorated.
+
+The code-level override covers **your** kernels only:
 
 ```python
 import numba_utils as nu
-nu.configure(cache=False)          # in code, before defining kernels
+nu.configure(cache=False)          # functions decorated after this call
 ```
 
-```
-NUMBA_UTILS_CACHE=0                # or from the environment (CI, farms)
-```
+By the time `configure()` can run, the library's kernels are already
+decorated, so it cannot reach them. On an affected machine, use the
+environment variable.
 
 Cost: each process recompiles fresh (seconds to a couple of minutes for
 large kernels). For a worker farm, amortize by running long-lived worker
@@ -64,4 +86,4 @@ tells you exactly this.
 | Environment | Recommendation |
 | --- | --- |
 | Single-process scripts, notebooks, dev loops | Keep the default (`cache=True`) |
-| Multi-process farms, shared FS, containers | `configure(cache=False)` / `NUMBA_UTILS_CACHE=0` |
+| Multi-process farms, shared FS, containers | `NUMBA_UTILS_CACHE=0` set before the first import |

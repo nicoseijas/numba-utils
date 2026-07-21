@@ -91,10 +91,11 @@ def cached_njit(
     load from any process. On some setups (observed on Windows machines
     running multi-process farms) loading a binary compiled by another
     process crashes intermittently. If you see "random" segfaults that
-    disappear after deleting ``__pycache__``, disable caching globally
-    with ``configure(cache=False)`` or ``NUMBA_UTILS_CACHE=0`` — either
-    overrides even explicit ``cache=True``. Full story:
-    docs/numba-cache.md.
+    disappear after deleting ``__pycache__``, set ``NUMBA_UTILS_CACHE=0``
+    before importing numba_utils — it overrides even explicit
+    ``cache=True``, for your kernels and the library's own alike.
+    (``configure(cache=False)`` covers only functions decorated after
+    the call.) Full story: docs/numba-cache.md.
     """
     return _apply_njit(func, {"cache": True}, overrides)
 

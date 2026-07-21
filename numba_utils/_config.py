@@ -14,7 +14,10 @@ on-disk cache on machines where it is unsafe (see docs/numba-cache.md).
 apply unchanged.
 
 Overrides affect only functions decorated AFTER the change — configure
-before defining your jitted functions.
+before defining your jitted functions. numba-utils' own kernels are
+decorated while ``numba_utils`` is imported, so code-level overrides can
+never reach them: to cover the library's kernels too, set the
+environment variable before the first import.
 """
 
 from __future__ import annotations

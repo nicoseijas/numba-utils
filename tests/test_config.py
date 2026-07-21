@@ -52,6 +52,18 @@ class TestConfigure:
         with pytest.raises(ValueError):
             configure(cache="no")
 
+    def test_does_not_reach_already_decorated_kernels(self):
+        # Documented limitation (docs/numba-cache.md): overrides resolve
+        # at decoration time, so the library's own kernels — decorated
+        # during `import numba_utils` — are out of configure()'s reach.
+        # Only NUMBA_UTILS_CACHE set before the first import covers them.
+        from numba_utils.algorithms import topk
+
+        before = _caching_enabled(topk)
+        configure(cache=False)
+        assert _caching_enabled(topk) == before
+        assert not _caching_enabled(cached_njit(_sum_impl))
+
     def test_decorated_function_still_computes(self):
         configure(cache=False, fastmath=False)
         fn = njit_fast(_sum_impl)

@@ -77,10 +77,13 @@ def inspect(fn: Any) -> FunctionReport:
                 asm_sizes.append(len(asm))
         except (AttributeError, KeyError, TypeError):
             pass
+    # _cache is a private Numba attribute; degrade to False if it moves.
+    cache = getattr(fn, "_cache", None)
     return FunctionReport(
         name=fn.py_func.__name__,
         signatures=tuple(str(sig) for sig in fn.signatures),
-        cache_enabled=type(fn._cache).__name__ != "NullCache",
+        cache_enabled=cache is not None
+        and type(cache).__name__ != "NullCache",
         cache_hits=hits,
         cache_misses=misses,
         parallel=bool(opts.get("parallel", False)),
@@ -145,7 +148,9 @@ def check(fn: Any, *, verbose: bool = True) -> list[str]:
             "(multi-process worker farms, network filesystems, ephemeral "
             "container storage). If you see intermittent access violations "
             "that disappear after deleting __pycache__, set "
-            "NUMBA_UTILS_CACHE=0 or configure(cache=False). "
+            "NUMBA_UTILS_CACHE=0 in the environment before numba_utils "
+            "is imported — configure(cache=False) reaches only functions "
+            "decorated after the call, not numba-utils' own kernels. "
             "See docs/numba-cache.md."
         )
     if report.parallel:
