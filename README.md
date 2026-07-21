@@ -175,9 +175,10 @@ Phase 1 (see
 - [x] arrays, algorithms, random, collections
 - [x] parallel patterns, testing helpers
 - [x] PyPI release ([`numba-utils`](https://pypi.org/project/numba-utils/))
-- [x] dtype-generic collections (`stack_type`, `fixed_queue_type`,
-      `ring_buffer_type`, `priority_queue_type`)
-- [ ] `stable_argsort`, `lexsort`
+- [x] Phase 2 (0.2.0): dtype-generic collections, `stable_argsort`,
+      `lexsort`, the `graph/` module (BFS/DFS, toposort, Dijkstra,
+      UnionFind over CSR) and the `stats/` module (`logsumexp`,
+      `softmax`, `weighted_quantile`)
 
 ## Development
 

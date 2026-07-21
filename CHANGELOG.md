@@ -7,7 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Phase 2 opens: dtype-generic collections.
+## [0.2.0] - 2026-07-21
+
+Phase 2 complete: two new modules (`graph/`, `stats/`), dtype-generic
+collections, and the sorting gaps (`stable_argsort`, `lexsort`).
+Additive only — no breaking changes; upgrading from 0.1.2 is a
+drop-in.
 
 ### Added
 
