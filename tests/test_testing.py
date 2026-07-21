@@ -234,6 +234,24 @@ class TestAssertWithinSe:
         with pytest.raises(AssertionError, match="non-finite"):
             assert_within_se([1.0, np.nan, 1.0, 1.0, 1.0], 1.0)
 
+    def test_identical_samples_pass_despite_mean_rounding(self):
+        # 0.4.0-verdict regression: np.mean over 30 copies of 0.1 is
+        # NOT 0.1 (pairwise-summation rounding), the sample std is
+        # ~1 ULP instead of 0.0, and an EXACTLY correct value failed
+        # at a deterministic ~5.4 SE. Identity must be detected
+        # structurally, not via se == 0.0.
+        for value in (0.1, 0.2, 0.3, 0.7, 1.1, 3.7):
+            assert assert_within_se([value] * 30, value) == (value, 0.0)
+
+    def test_ulp_scale_deviation_is_not_bias(self):
+        # A mean within a few ULP of the target must pass even when
+        # the measured SE is at rounding-noise scale.
+        base = 0.1
+        samples = np.full(30, base)
+        samples[0] = np.nextafter(base, 1.0)  # break bit-identity
+        mean, _se = assert_within_se(samples, base)
+        assert mean != base  # the deviation existed; it was ULP-scale
+
 
 class TestMutationScreams:
     def test_live_check_passes_and_returns_deviation(self):
@@ -264,6 +282,52 @@ class TestMutationScreams:
         with pytest.raises(ValueError):
             mutation_screams(lambda broken: 0.0, threshold=0.0)
 
+    def test_none_result_rejected(self):
+        # 0.4.0-verdict regression: an in-place kernel returning None
+        # became np.asarray(None) -> NaN -> "non-finite counts as a
+        # scream" -> the check certified a mutation wired to NOTHING.
+        with pytest.raises(TypeError, match="None"):
+            mutation_screams(lambda broken: None, threshold=1.0)
+
+        def in_place_forgot_return(broken):
+            buf = np.zeros(4)
+            if broken:
+                buf[0] = 99.0
+            return None  # mutated buf, returned nothing
+
+        with pytest.raises(TypeError, match="RETURN the buffer"):
+            mutation_screams(in_place_forgot_return, threshold=1.0)
+
+    def test_identical_nan_outputs_do_not_scream(self):
+        # 0.4.0-verdict regression: NaN in the output with the mutation
+        # NOT wired (identical outputs) passed as a scream because
+        # NaN - NaN = NaN was counted as non-finite deviation.
+        def run(broken):
+            return np.array([1.0, np.nan, 3.0])  # same either way
+
+        with pytest.raises(AssertionError, match="does NOT scream"):
+            mutation_screams(run, threshold=1.0)
+
+    def test_matching_nonfinite_positions_do_not_mask_real_deviation(self):
+        # inf/NaN present in BOTH runs at the same positions must not
+        # drown a real finite deviation elsewhere.
+        def run(broken):
+            out = np.array([np.inf, np.nan, 1.0])
+            if broken:
+                out[2] = 51.0
+            return out
+
+        assert mutation_screams(run, threshold=1.0) == 50.0
+
+    def test_nan_appearing_is_a_scream(self):
+        def run(broken):
+            out = np.array([1.0, 2.0])
+            if broken:
+                out[1] = np.nan
+            return out
+
+        assert not np.isfinite(mutation_screams(run, threshold=1.0))
+
 
 class TestAssertNoReweightBias:
     def test_correct_estimator_passes(self):
@@ -287,3 +351,17 @@ class TestAssertNoReweightBias:
 
         with pytest.raises(AssertionError):
             assert_no_reweight_bias(broken)
+
+    def test_underpowered_run_is_inconclusive_not_a_pass(self):
+        # 0.4.0-verdict regression: the k·SE criterion self-hides — a
+        # noisy estimator widens its own tolerance band. The library's
+        # own kernel at n_sub=5 has k·SE larger than the gap between
+        # the exact and double-weighted means; it used to pass, now it
+        # must fail as inconclusive.
+        from numba_utils.stats import weighted_mc_mean
+
+        def noisy(values, weights, run_seed):
+            return weighted_mc_mean(values, weights, 5, run_seed, 0)
+
+        with pytest.raises(AssertionError, match="INCONCLUSIVE"):
+            assert_no_reweight_bias(noisy)

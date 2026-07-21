@@ -85,6 +85,11 @@ def assert_within_se(
     false-positive rates the measured-SE statistic carries; the same
     ``n >= 5`` floor applies. Contributed pattern from a production
     CFR solver's certification harness.
+
+    Bit-identical samples are compared to ``target`` exactly (zero
+    variance carries no statistical information), and a mean within a
+    few ULP of ``target`` passes regardless of the measured SE — at
+    that scale the deviation is float arithmetic, not bias.
     """
     arr = np.asarray(samples, np.float64)
     if arr.ndim != 1:
@@ -102,17 +107,35 @@ def assert_within_se(
         raise ValueError("assert_within_se: target must be finite")
     if not np.all(np.isfinite(arr)):
         raise AssertionError("assert_within_se: samples contain a non-finite value")
-    mean = float(np.mean(arr))
-    se = float(np.std(arr, ddof=1) / math.sqrt(n))
-    if se == 0.0:
-        if mean != target:
+    # Identical samples are detected STRUCTURALLY, not via se == 0.0:
+    # np.mean over n bit-identical copies carries its own rounding
+    # (30 copies of 0.1 do not average to 0.1), so the sample std is
+    # ~1 ULP instead of exactly 0 — and dividing the mean's rounding
+    # residual by that noise produced a deterministic ~5-SE failure
+    # for an EXACTLY correct function.
+    if bool(np.all(arr == arr[0])):
+        value = float(arr[0])
+        if value != target:
             raise AssertionError(
                 f"assert_within_se: all {n} samples are the identical "
-                f"value {mean!r} != target {target!r} — if they come "
+                f"value {value!r} != target {target!r} — if they come "
                 "from seeded runs, the seeds are likely not reaching "
                 "the sampler"
             )
+        return value, 0.0
+    mean = float(np.mean(arr))
+    se = float(np.std(arr, ddof=1) / math.sqrt(n))
+    # Below the float64 resolution of the mean itself, no k·SE claim is
+    # meaningful — a deviation of a few ULP is arithmetic, not bias.
+    noise_floor = 16.0 * np.finfo(np.float64).eps * max(abs(mean), abs(target))
+    if abs(mean - target) <= noise_floor:
         return mean, se
+    if se == 0.0:
+        raise AssertionError(
+            f"assert_within_se: samples have zero variance but mean "
+            f"{mean!r} differs from target {target!r} beyond float64 "
+            "resolution"
+        )
     deviation = abs(mean - target) / se
     if deviation > k:
         raise AssertionError(

@@ -27,9 +27,18 @@ def weighted_mc_mean(values, weights, n_sub, key, counter):
     ``n_sub`` counters starting at ``counter``), so the estimate is
     reproducible regardless of threads or call order. If the support
     has at most ``n_sub`` entries, returns the EXACT weighted mean.
-    This is the standard ratio estimator: consistent, with O(1/n_sub)
-    bias — the SE-vs-truth check in ``assert_no_reweight_bias`` is the
-    honest way to bound it for your sizes.
+
+    This is the standard ratio estimator: consistent as ``n_sub``
+    grows, but its finite-``n_sub`` bias is driven by weight
+    CONCENTRATION, and in concentrated regimes it is not small — a
+    uniform subsample misses the entries that carry the mass.
+    Measured: −9% relative at ``n_sub=5`` over 2000 entries with
+    ``w = u^6`` weights, and −98% with a single dominant weight at
+    ``n_sub=50`` (the dominant entry is usually absent from the
+    subsample). Avoiding the reach² bug does NOT make the estimator
+    accurate at any ``n_sub``: certify at YOUR ``n_sub`` and weight
+    profile with ``assert_no_reweight_bias``, which fails as
+    inconclusive when its resolution cannot support a verdict.
 
     Validation as in :func:`numba_utils.weighted_quantile`: NaN values,
     NaN/negative/non-finite weights and an all-zero total raise

@@ -103,6 +103,10 @@ kernel voided real conclusions):
   intact or with a deliberate bug injected; the deviation between the
   two must EXCEED the threshold. A check that cannot fail certifies
   nothing; this is the red half that proves the green half is alive.
+  In-place kernels must RETURN the buffer they mutate (`None` is
+  rejected — nothing to compare means nothing certified), and NaN/inf
+  present identically in both runs contributes nothing: only a real
+  difference can scream.
 - `assert_within_se(samples, target, k=3)` — the one-sample-set
   primitive under `assert_converges`: the SE is measured from the
   samples, never assumed. A residual below an unmeasured noise floor
@@ -110,8 +114,14 @@ kernel voided real conclusions):
 - `assert_no_reweight_bias(estimator)` — screams on the reach² bug
   (subsampling proportional to the weights and then weighting again):
   invisible at near-uniform weights, explosive at concentrated ones.
-  The correct pattern ships as `numba_utils.weighted_mc_mean`
-  (uniform-subsample-then-weight, Philox-driven).
+  A pass requires the run to be CONCLUSIVE — k·SE small enough to
+  distinguish the exact weighted mean from the double-weighted one;
+  an underpowered run fails as inconclusive rather than certifying
+  nothing (the k·SE criterion alone self-hides: a bug that inflates
+  variance widens its own tolerance band). The correct pattern ships
+  as `numba_utils.weighted_mc_mean` (uniform-subsample-then-weight,
+  Philox-driven) — correct-pattern ≠ accurate at any `n_sub`; see its
+  docstring for the concentrated-weight bias numbers.
 
 Two disciplines the same harness taught: derive the estimator FROM the
 estimand where possible (return both sides from one symmetric
