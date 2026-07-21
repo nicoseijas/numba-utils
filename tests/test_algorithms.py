@@ -334,3 +334,15 @@ class TestCombinationTable:
         # rows * 8 columns = 145M elements exceeds 2**27 — must raise
         with pytest.raises(ValueError):
             combination_table(34, 8)
+
+
+class TestIntegerDtypeGate:
+    def test_float_input_rejected_at_compile_time(self):
+        # Float input would silently truncate through the int64 key
+        # conversions and fabricate output values — rejected at typing
+        # time (dtypes are not runtime-comparable in nopython).
+        from numba.core.errors import TypingError
+
+        for fn in (counting_sort, radix_sort):
+            with pytest.raises(TypingError, match="integer dtypes only"):
+                fn(np.array([1.5, 2.5]))

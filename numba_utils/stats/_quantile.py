@@ -17,9 +17,10 @@ def weighted_quantile(values, weights, q):
     ``np.quantile(values, q, weights=weights, method="inverted_cdf")``
     exactly. Returns an element of ``values`` (no interpolation).
 
-    Like NumPy's, ``q=0`` returns the smallest value even if its weight
-    is zero; for ``q > 0`` zero-weight values are never the crossing
-    point. Validation fails fast:
+    Zero-weight values are never selected — including at ``q = 0``,
+    where NumPy likewise returns the smallest POSITIVELY-weighted
+    value (verified against NumPy, not assumed). Validation fails
+    fast:
     ``q`` outside ``[0, 1]``, empty input, NaN values, and — as in
     :func:`numba_utils.weighted_sampling` — negative or non-finite
     weights or an all-zero total raise ``ValueError`` (NaN would pass a
@@ -52,11 +53,19 @@ def weighted_quantile(values, weights, q):
     order = np.argsort(values)
     target = q * total
     acc = 0.0
+    last_positive = values[order[0]]
     for i in range(n):
         idx = order[i]
-        acc += np.float64(weights[idx])
-        if acc >= target:
-            return values[idx]
+        w = np.float64(weights[idx])
+        if w > 0.0:
+            # Zero-weight elements are skipped so they can never be
+            # the answer — matching NumPy's weighted inverted_cdf,
+            # including at q = 0 (its q=0 result is the smallest value
+            # with positive weight, not the raw minimum).
+            acc += w
+            last_positive = values[idx]
+            if acc >= target:
+                return values[idx]
     # Float rounding can leave acc a hair below q * total at the end;
-    # the answer is then the largest value, as in NumPy.
-    return values[order[n - 1]]
+    # the answer is then the largest positively-weighted value.
+    return last_positive

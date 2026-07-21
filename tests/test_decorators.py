@@ -123,3 +123,18 @@ class TestBoundscheck:
         assert get(arr, 3) == 3.0
         with pytest.raises(IndexError):
             get(arr, 10)
+
+    def test_dev_mode_cache_lock_beats_global_override(self, monkeypatch):
+        # Numba's cache key ignores boundscheck, so a shared on-disk
+        # cache would poison both directions (prod loads checked
+        # binaries; dev loads unchecked ones and silently checks
+        # nothing). The dev build must never touch the cache — not
+        # even under a global cache=True override or an explicit
+        # per-call argument.
+        monkeypatch.setenv(DEV_MODE_ENV_VAR, "1")
+        monkeypatch.setenv(CACHE_ENV_VAR, "1")
+
+        fn = boundscheck(_sum_impl)
+        assert type(fn._cache).__name__ == "NullCache"
+        fn_explicit = boundscheck(cache=True)(_sum_impl)
+        assert type(fn_explicit._cache).__name__ == "NullCache"

@@ -306,3 +306,30 @@ class TestInsideNjit:
         src = np.array([0, 2], np.int64)
         dst = np.array([1, 3], np.int64)
         assert count_components(5, src, dst) == 3
+
+
+class TestCsrValidation:
+    def test_malformed_indptr_raises_everywhere(self):
+        # a wild indptr entry drives out-of-bounds reads/writes in
+        # nopython (no bounds checking) — must raise, not segfault
+        indices = np.array([1, 0], np.int64)
+        bad_endpoint = np.array([0, 1, 5], np.int64)    # indptr[n] != m
+        bad_start = np.array([1, 1, 2], np.int64)       # indptr[0] != 0
+        non_monotonic = np.array([0, 2, 1, 2], np.int64)  # dips below prev
+        for indptr in (bad_endpoint, bad_start, non_monotonic):
+            with pytest.raises(ValueError):
+                bfs(indptr, indices, 0)
+            with pytest.raises(ValueError):
+                dfs_preorder(indptr, indices, 0)
+            with pytest.raises(ValueError):
+                topological_sort(indptr, indices)
+            with pytest.raises(ValueError):
+                dijkstra(indptr, indices, np.ones(2), 0)
+
+    def test_wild_middle_entry_raises(self):
+        # entries beyond len(indices) with correct endpoints must be
+        # caught by the monotonicity check
+        indices = np.array([1, 0], np.int64)
+        indptr = np.array([0, 10**9, 2], np.int64)
+        with pytest.raises(ValueError):
+            bfs(indptr, indices, 0)

@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-07-21
+
+Full-audit follow-up (three adversarial reviewers over the whole
+library): two memory-safety fixes reachable with VALID input, a
+repaired dev-mode safety tool, a compile-time dtype gate, and one
+corrected semantic where "matches NumPy" was asserted but false.
+
+### Fixed
+
+- **arrays / parallel** — `histogram` and `parallel_histogram`: a
+  subnormal `hi - lo` (realistic trigger:
+  `histogram(a, bins, a.min(), a.max())` on nearly-constant data)
+  degenerates `scale` so that `0 * inf = NaN -> int(NaN) = INT64_MIN`
+  for IN-range values — an out-of-bounds write with valid input. Both
+  kernels now clamp `idx < 0` symmetrically with the existing high
+  clamp (which also keeps memory safety if a global fastmath override
+  ever weakens the NaN filter), and non-finite `lo`/`hi` are rejected
+  up front.
+- **graph** — the four algorithms validate CSR structure up front
+  (`indptr[0] == 0`, `indptr[-1] == len(indices)`, monotonic): a
+  malformed `indptr` previously drove out-of-bounds reads and writes
+  (reproduced as SIGSEGV) despite the per-entry `indices` checks. O(n)
+  next to O(n + m) algorithms — free.
+- **decorators** — `boundscheck` dev mode hard-locks `cache=False`
+  against global overrides and per-call arguments. Numba's cache key
+  ignores `boundscheck`, so a shared on-disk cache poisoned both
+  directions: production loading checked binaries (cost), and dev
+  loading unchecked binaries — the safety tool silently checking
+  nothing. `locked` options are a new internal tier that beats even
+  `configure()`/env overrides, used only for safety invariants.
+- **algorithms** — `counting_sort` and `radix_sort` reject non-integer
+  dtypes at compile time (via a typing-time gate; dtypes are not
+  runtime-comparable in nopython). Float input previously truncated
+  through the int64 key conversions and FABRICATED output values.
+- **stats** — `weighted_quantile` at `q = 0` with a zero-weight
+  minimum now matches NumPy for real: NumPy's weighted `inverted_cdf`
+  skips zero-weight values even at `q = 0` (verified empirically —
+  the 0.3.0 docstring asserted the opposite behavior as "matching
+  NumPy"). Zero-weight values are now never selected, at any q.
+
+Also verified this round: the SparseSet churn benchmark reproduces on
+the reference machine (4.5x; a reviewer's 0.82x was environment
+noise), and `chunked_reduce`'s bit-exactness held under an adversarial
+1e12/1e-12 kernel across chunk counts and 1–8 threads.
+
 ## [0.3.1] - 2026-07-21
 
 Contract fixes from the second round of user review: the 0.3.0

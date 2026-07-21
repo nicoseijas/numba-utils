@@ -43,6 +43,8 @@ def histogram(arr, bins, lo, hi):
     """
     if bins < 1:
         raise ValueError("histogram: bins must be >= 1")
+    if not (np.isfinite(lo) and np.isfinite(hi)):
+        raise ValueError("histogram: lo and hi must be finite")
     if not lo < hi:
         raise ValueError("histogram: lo must be < hi")
     counts = np.zeros(bins, np.int64)
@@ -56,5 +58,12 @@ def histogram(arr, bins, lo, hi):
         idx = int((x - lo) * scale)
         if idx >= bins:
             idx = bins - 1
+        # A subnormal hi - lo degenerates scale to inf, and 0 * inf is
+        # NaN -> INT64_MIN even for in-range x. The symmetric clamp
+        # keeps every write in bounds no matter how the arithmetic
+        # degenerates (including a global fastmath override weakening
+        # the NaN filter above).
+        if idx < 0:
+            idx = 0
         counts[idx] += 1
     return counts

@@ -198,3 +198,21 @@ class TestUniqueSorted:
 
     def test_dtype_preserved(self):
         assert unique_sorted(np.array([1, 1, 2], dtype=np.int32)).dtype == np.int32
+
+
+class TestHistogramDegenerateInputs:
+    def test_histogram_degenerate_scale_stays_in_bounds(self):
+        # A subnormal hi - lo degenerates scale to inf and 0 * inf is
+        # NaN -> int(NaN) = INT64_MIN for IN-RANGE x — the realistic
+        # trigger is histogram(a, bins, a.min(), a.max()) on nearly-
+        # constant data. Every element must land in a valid bin.
+        arr = np.zeros(1000)
+        arr[500] = 5e-324  # subnormal range
+        counts = histogram(arr, 64, arr.min(), arr.max())
+        assert counts.sum() == 1000
+
+    def test_histogram_non_finite_bounds_raise(self):
+        with pytest.raises(ValueError):
+            histogram(np.ones(3), 4, -np.inf, np.inf)
+        with pytest.raises(ValueError):
+            histogram(np.ones(3), 4, 0.0, np.nan)

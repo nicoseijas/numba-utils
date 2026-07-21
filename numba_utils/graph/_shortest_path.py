@@ -5,6 +5,7 @@ from __future__ import annotations
 import numpy as np
 
 from numba_utils.decorators import cached_njit
+from numba_utils.graph._validate import check_csr
 
 
 @cached_njit
@@ -63,7 +64,7 @@ def dijkstra(indptr, indices, weights, source):
 
     Complexity: O((n + m) log n). Memory: O(n + m).
     """
-    n = indptr.shape[0] - 1
+    n = check_csr(indptr, indices)
     m = indices.shape[0]
     if weights.shape[0] != m:
         raise ValueError("dijkstra: weights length must match indices")

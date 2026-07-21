@@ -32,6 +32,8 @@ def parallel_histogram(arr, bins, lo, hi):
         return histogram(arr, bins, lo, hi)
     if bins < 1:
         raise ValueError("parallel_histogram: bins must be >= 1")
+    if not (np.isfinite(lo) and np.isfinite(hi)):
+        raise ValueError("parallel_histogram: lo and hi must be finite")
     if not lo < hi:
         raise ValueError("parallel_histogram: lo must be < hi")
     n_threads = get_num_threads()
@@ -53,6 +55,11 @@ def parallel_histogram(arr, bins, lo, hi):
             idx = int((x - lo) * scale)
             if idx >= bins:
                 idx = bins - 1
+            # Symmetric clamp, as in the serial histogram: a subnormal
+            # hi - lo degenerates scale and 0 * inf = NaN -> INT64_MIN
+            # even for in-range x.
+            if idx < 0:
+                idx = 0
             private[t, idx] += 1
     counts = np.zeros(bins, np.int64)
     for t in range(n_threads):

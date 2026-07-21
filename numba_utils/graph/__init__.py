@@ -7,10 +7,10 @@ node ``u``'s neighbors are ``indices[indptr[u]:indptr[u + 1]]``
 lists with :func:`edges_to_csr`; for an undirected graph, add each
 edge in both directions.
 
-``indices`` entries are bounds-checked as they are visited (a malformed
-CSR raises ``ValueError`` instead of corrupting memory); ``indptr`` is
-trusted to be monotonically non-decreasing, as ``edges_to_csr``
-produces.
+The CSR structure is validated up front (``indptr`` monotonic with the
+right endpoints — O(n), free next to the algorithms) and ``indices``
+entries are bounds-checked as they are visited: a malformed CSR raises
+``ValueError`` instead of driving out-of-bounds reads and writes.
 """
 
 from numba_utils.graph._csr import edges_to_csr

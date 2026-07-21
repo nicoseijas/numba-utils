@@ -36,6 +36,7 @@ def _apply_njit(
     func: Callable[..., Any] | None,
     defaults: dict[str, Any],
     overrides: dict[str, Any],
+    locked: dict[str, Any] | None = None,
 ) -> Callable[..., Any]:
     options = {**defaults, **overrides}
     # Global overrides (configure()/NUMBA_UTILS_* env) win over per-call
@@ -47,8 +48,13 @@ def _apply_njit(
         forced = config.resolve(name)
         if forced is not None:
             options[name] = forced
+    # `locked` wins over EVERYTHING, including global overrides — used
+    # where an option is a safety invariant, not a preference (dev-mode
+    # boundscheck must never touch the on-disk cache).
+    if locked:
+        options.update(locked)
     if func is None:
-        return lambda f: _apply_njit(f, options, {})
+        return lambda f: _apply_njit(f, options, {}, locked)
     if not callable(func):
         raise TypeError(
             f"expected a callable to decorate, got {type(func).__name__!r}"
@@ -108,14 +114,20 @@ def boundscheck(
     """Development-mode bounds checking that vanishes in production.
 
     With ``NUMBA_UTILS_DEV=1`` in the environment, compiles with
-    ``boundscheck=True`` so out-of-bounds array access raises ``IndexError``
-    (cache disabled: dev builds must not poison the on-disk cache).
-    Without it, compiles a plain cached ``njit`` with zero overhead.
+    ``boundscheck=True`` so out-of-bounds array access raises
+    ``IndexError``. In dev mode the on-disk cache is HARD-disabled — no
+    global override or per-call argument can re-enable it. That is a
+    safety invariant, not a preference: Numba's cache key does not
+    include ``boundscheck``, so a shared cache poisons both directions
+    — production loading a checked binary pays the cost, and (worse)
+    dev loading an unchecked binary silently checks nothing while you
+    believe it does. Without ``NUMBA_UTILS_DEV``, compiles a plain
+    cached ``njit`` with zero overhead.
 
     The environment is read at decoration time, not call time.
     """
     if _dev_mode_enabled():
-        defaults: dict[str, Any] = {"boundscheck": True, "cache": False}
-    else:
-        defaults = {"cache": True}
-    return _apply_njit(func, defaults, overrides)
+        return _apply_njit(
+            func, {"boundscheck": True}, overrides, locked={"cache": False}
+        )
+    return _apply_njit(func, {"cache": True}, overrides)

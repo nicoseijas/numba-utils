@@ -10,6 +10,7 @@ from __future__ import annotations
 import numpy as np
 
 from numba_utils.decorators import cached_njit
+from numba_utils.graph._validate import check_csr
 
 
 @cached_njit
@@ -21,7 +22,7 @@ def bfs(indptr, indices, source):
 
     Complexity: O(n + m). Memory: O(n).
     """
-    n = indptr.shape[0] - 1
+    n = check_csr(indptr, indices)
     if source < 0 or source >= n:
         raise ValueError("bfs: source out of range")
     dist = np.full(n, -1, np.int64)
@@ -54,7 +55,7 @@ def dfs_preorder(indptr, indices, source):
 
     Complexity: O(n + m). Memory: O(n + m) for the stack.
     """
-    n = indptr.shape[0] - 1
+    n = check_csr(indptr, indices)
     if source < 0 or source >= n:
         raise ValueError("dfs_preorder: source out of range")
     visited = np.zeros(n, np.bool_)
@@ -100,7 +101,7 @@ def topological_sort(indptr, indices):
 
     Complexity: O(n + m). Memory: O(n).
     """
-    n = indptr.shape[0] - 1
+    n = check_csr(indptr, indices)
     m = indices.shape[0]
     indegree = np.zeros(n, np.int64)
     for p in range(m):

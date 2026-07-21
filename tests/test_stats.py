@@ -131,3 +131,15 @@ class TestInsideNjit:
         assert lse == pytest.approx(np.log(np.sum(np.exp(scores))))
         assert med == 2.0
         assert probs.sum() == pytest.approx(1.0)
+
+
+class TestWeightedQuantileZeroWeightEdge:
+    def test_q_zero_skips_zero_weight_minimum(self):
+        # NumPy's weighted inverted_cdf at q=0 returns the smallest
+        # POSITIVELY-weighted value, not the raw minimum — verified,
+        # and we match it (a previous version got this exactly wrong).
+        v = np.array([1.0, 2.0, 3.0])
+        w = np.array([0.0, 1.0, 1.0])
+        expected = np.quantile(v, 0.0, weights=w, method="inverted_cdf")
+        assert expected == 2.0
+        assert weighted_quantile(v, w, 0.0) == expected

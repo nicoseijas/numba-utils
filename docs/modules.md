@@ -83,8 +83,10 @@ order), `topological_sort` (Kahn, deterministic lowest-index-first,
 raises on cycles), `dijkstra` (lazy-deletion binary heap, rejects
 NaN/negative weights, `inf` = unreachable), and `UnionFind` (jitclass;
 union by size + path compression, `union` returns whether a merge
-happened). `indices` entries are bounds-checked during traversal — a
-malformed CSR raises instead of corrupting memory.
+happened). The CSR structure is validated up front (`indptr` monotonic
+with the right endpoints) and `indices` entries are bounds-checked
+during traversal — a malformed CSR raises instead of corrupting
+memory.
 
 ### `numba_utils.stats`
 

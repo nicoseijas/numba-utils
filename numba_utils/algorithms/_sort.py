@@ -11,11 +11,38 @@ never modified.
 from __future__ import annotations
 
 import numpy as np
+from numba.core import types as nb_types
+from numba.core.errors import TypingError
+from numba.extending import overload
 
 from numba_utils.algorithms._select import nth_element
 from numba_utils.decorators import cached_njit
 
 _COUNTING_SORT_MAX_RANGE = 2**27
+
+
+def _require_integer(arr):
+    # Interpreted fallback (kernels are always jitted; kept for parity).
+    if not np.issubdtype(arr.dtype, np.integer):
+        raise TypeError("integer dtypes only")
+
+
+@overload(_require_integer)
+def _ol_require_integer(arr):
+    # Compile-time dtype gate: float inputs would silently truncate
+    # through the int64 key conversions and FABRICATE values in the
+    # output. Rejecting at typing time is the only check nopython can
+    # express (dtypes are not runtime-comparable).
+    if not isinstance(arr.dtype, nb_types.Integer):
+        raise TypingError(
+            "integer dtypes only — float input would be silently "
+            "truncated; sort floats with np.sort or stable_argsort"
+        )
+
+    def impl(arr):
+        return None
+
+    return impl
 
 
 @cached_njit
@@ -68,6 +95,7 @@ def counting_sort(arr):
 
     Complexity: O(n + range). Memory: O(n + range).
     """
+    _require_integer(arr)
     n = arr.shape[0]
     out = np.empty_like(arr)
     if n == 0:
@@ -125,6 +153,7 @@ def radix_sort(arr):
 
     Complexity: O(n · (1 + bytes_used)). Memory: O(n) scratch + counters.
     """
+    _require_integer(arr)
     n = arr.shape[0]
     a = arr.copy()
     if n <= 1:
