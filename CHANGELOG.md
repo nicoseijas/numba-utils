@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Second audit round: two out-of-bounds-write fixes, one crash fix in a
+parallel edge case, and an important correction to the cache kill-switch
+documentation. No API changes.
+
+### Fixed
+
+- **arrays / parallel** — `histogram` and `parallel_histogram` now skip
+  NaN values. Previously a NaN passed the range filter (NaN fails every
+  comparison) and `int(NaN)` — INT64_MIN in nopython mode — indexed one
+  element past the counts buffer: a silent out-of-bounds write next to a
+  small heap allocation, plus silently wrong counts.
+- **algorithms** — `counting_sort` computes its value range as a uint64
+  modular distance, so ranges that overflow int64 now raise the friendly
+  "range too large, use radix_sort" error. Previously the wrapped range
+  either raised a confusing "negative dimensions" error or — for the
+  INT64_MIN/INT64_MAX sentinel pair, whose true range wraps to zero —
+  crashed the process with an access violation.
+- **parallel** — `parallel_topk` clamps chunk starts to the array
+  length. With a thread count high relative to the input (threads ≥
+  ~√n, e.g. 300 threads on n just above the serial threshold), trailing
+  threads computed negative chunk sizes, undersizing the merge buffer
+  and corrupting the heap.
+- **diagnostics** — `inspect` no longer assumes Numba's private
+  `_cache` attribute exists; it degrades to `cache_enabled=False`,
+  matching the module's degrade-don't-fail contract.
+- **arrays** — `bincount` rejects a negative `minlength` with a clear
+  error instead of a bare "negative dimensions not allowed".
+
+### Changed
+
+- **docs/numba-cache.md** — corrected the kill-switch guidance: the
+  library's own kernels are decorated during `import numba_utils`, so
+  `configure(cache=False)` cannot reach them. The full kill-switch is
+  `NUMBA_UTILS_CACHE=0` set before the first import; `configure()`
+  covers functions decorated after the call. `diagnostics.check()` and
+  the `cached_njit` docstring now say the same.
+- NaN caveats documented on the comparison-based float kernels
+  (`nth_element`, `fast_argpartition`, `topk`, `insertion_sort`,
+  `partial_sort`), and the mutating-arguments caveat on `benchmark`.
+
 ## [0.1.1] - 2026-07-20
 
 Audit follow-up: one silent-wrong-answer fix in weighted sampling, plus

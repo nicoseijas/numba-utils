@@ -35,6 +35,21 @@ launching parallel regions in one process crashes the threadpool**. If a
 pass must re-launch a parallel kernel many times, run each pass in its
 own (retryable) subprocess.
 
+A related upstream Numba bug: the threadpool teardown at interpreter
+shutdown can segfault (`0xC0000005` on Windows) **after all work has
+completed correctly**. The crash lives entirely inside Numba's threading
+layer while the process exits; user code already finished and its output
+is valid. Two consequences:
+
+- **Verify runs by their output artifact, not their exit code.** A
+  harness that treats a nonzero return code as failure will flag
+  successful runs as broken. Check that the expected file was written or
+  the expected output was produced instead.
+- Mitigations are the same as above: `NUMBA_NUM_THREADS=1` per worker,
+  disposable worker processes (where an exit-time crash is harmless),
+  and optionally a different `NUMBA_THREADING_LAYER` — stability varies
+  per machine, so treat a layer switch as an experiment, not a fix.
+
 ## Structural rules
 
 - **Co-locate a parallel kernel with its `prange` driver** in the same

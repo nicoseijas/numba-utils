@@ -49,7 +49,8 @@ def topk(arr, k):
     min-heap, O(n) time and O(k) extra memory. Large k: quickselect via
     :func:`nth_element` on a copy, then sort only the k winners. Either
     way the full sort never happens. For the k smallest, use
-    :func:`fast_argpartition`.
+    :func:`fast_argpartition`. Results are undefined if ``arr``
+    contains NaN.
 
     Complexity: average O(n + k log k). Memory: O(k) small k, O(n) large k.
     """

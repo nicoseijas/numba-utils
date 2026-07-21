@@ -66,6 +66,8 @@ def benchmark(
     for jitted code), then times ``n`` calls and returns
     :class:`TimingStats` (mean/median/variance/min/max). Set
     ``warmup_runs=0`` only if you explicitly want compilation included.
+    ``args``/``kwargs`` are NOT copied between runs — don't pass a
+    function that mutates its arguments.
 
     **Block mode** — pass a label (or nothing) and use as a context
     manager::

@@ -37,6 +37,8 @@ def nth_element(arr, k):
     After the call: ``arr[:k] <= arr[k] <= arr[k+1:]`` (both sides
     unordered). Returns ``arr[k]``. Iterative Hoare quickselect with
     median-of-three pivots. This is the C++ ``std::nth_element``.
+    NaN breaks the partition comparisons: results are undefined if
+    ``arr`` contains NaN — filter first.
 
     Complexity: average O(n), worst O(n²). Memory: O(1).
     """
@@ -89,7 +91,8 @@ def fast_argpartition(arr, k):
 
     Like ``np.argpartition(arr, k)[:k]`` but returns exactly k indices and
     skips NumPy's full output. Input is NOT modified; the quickselect runs
-    on an index array compared through ``arr``.
+    on an index array compared through ``arr``. Results are undefined if
+    ``arr`` contains NaN.
 
     Complexity: average O(n), worst O(n²). Memory: O(n) for the indices.
     """
