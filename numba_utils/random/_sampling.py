@@ -6,6 +6,7 @@ import numpy as np
 
 from numba_utils.arrays import upper_bound
 from numba_utils.decorators import cached_njit
+from numba_utils.random._philox import philox_randint
 
 
 @cached_njit
@@ -76,6 +77,51 @@ def sample_without_replacement(arr, k):
 
 
 @cached_njit
+def philox_partial_shuffle(arr, k, key, counter):
+    """Counter-based :func:`partial_shuffle`: same in-place partial
+    Fisher–Yates, but driven by the stateless Philox stream ``key`` —
+    reproducible regardless of threads, processes or call order.
+
+    Consumes counters ``counter .. counter + k - 1``: give each work
+    unit a disjoint counter range (e.g.
+    ``counter = iteration * k_per_iteration``) and the whole run is
+    reproducible by construction. Returns ``arr``.
+
+    Complexity: O(k). Memory: O(1).
+    """
+    n = arr.shape[0]
+    if k < 0 or k > n:
+        raise ValueError("philox_partial_shuffle: k must be in [0, len(arr)]")
+    c = np.uint64(counter)
+    for i in range(k):
+        j = i + philox_randint(key, c, n - i)
+        arr[i], arr[j] = arr[j], arr[i]
+        c += np.uint64(1)
+    return arr
+
+
+@cached_njit
+def philox_sample_without_replacement(arr, k, key, counter):
+    """Counter-based :func:`sample_without_replacement`: ``k`` elements
+    without replacement from the stateless Philox stream ``key``.
+    Input untouched; consumes counters ``counter .. counter + k - 1``.
+
+    In a hot loop, skip the per-call copy: keep a scratch array and use
+    :func:`philox_partial_shuffle` directly.
+
+    Complexity: O(n) copy + O(k) swaps. Memory: O(n).
+    """
+    n = arr.shape[0]
+    if k < 1 or k > n:
+        raise ValueError(
+            "philox_sample_without_replacement: k must be in [1, len(arr)]"
+        )
+    tmp = arr.copy()
+    philox_partial_shuffle(tmp, k, key, counter)
+    return tmp[:k].copy()
+
+
+@cached_njit
 def weighted_sampling(weights, size):
     """``size`` indices in ``[0, n)`` sampled WITH replacement, with
     probability proportional to ``weights``.
@@ -109,10 +155,19 @@ def weighted_sampling(weights, size):
         raise ValueError("weighted_sampling: weights sum is not finite")
     if total <= 0.0:
         raise ValueError("weighted_sampling: weights sum to zero")
+    n_last = n - 1
     out = np.empty(size, np.int64)
     for i in range(size):
         u = np.random.random() * total
-        out[i] = upper_bound(cum, u)
+        idx = upper_bound(cum, u)
+        # Defense in depth: with round-to-nearest and random()'s 2**-53
+        # granularity, u < total always holds (verified analytically
+        # and empirically), so idx <= n-1. The clamp guards against a
+        # future fastmath/rounding-mode/RNG-granularity change turning
+        # this into an out-of-range index.
+        if idx > n_last:
+            idx = n_last
+        out[i] = idx
     return out
 
 
@@ -184,7 +239,14 @@ def alias_setup(weights):
 
 @cached_njit
 def alias_draw(prob, alias):
-    """One weighted index from tables built by :func:`alias_setup`. O(1)."""
+    """One weighted index from tables built by :func:`alias_setup`. O(1).
+
+    Raises ``ValueError`` if the two tables' lengths differ (mixed-up
+    tables would otherwise index out of range — silent corruption in
+    nopython).
+    """
+    if prob.shape[0] != alias.shape[0]:
+        raise ValueError("alias_draw: prob and alias lengths differ")
     i = np.random.randint(0, prob.shape[0])
     if np.random.random() < prob[i]:
         return i

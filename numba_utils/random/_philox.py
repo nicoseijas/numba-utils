@@ -13,6 +13,14 @@ with 10 rounds), and the test suite asserts bit-identical output
 against it. One layout note: NumPy increments the counter *before*
 generating, so ``philox4x64(k0, k1, c + 1, 0, 0, 0)`` equals the first
 raw block of ``np.random.Philox(counter=[c, 0, 0, 0], key=[k0, k1])``.
+
+Two usage notes that apply to every function here:
+
+- From Python, pass keys/counters ``>= 2**63`` as ``np.uint64`` —
+  Numba's dispatcher types plain Python ints as int64.
+- ``philox_uniform`` and ``philox_randint`` at the same
+  ``(key, counter)`` consume DIFFERENT words of the block (x0 and x1),
+  so the pair is independent, not correlated.
 """
 
 from __future__ import annotations
@@ -104,15 +112,17 @@ def philox_randint(key, counter, n):
 
     Multiply-shift bounding: bias is below ``n / 2**64`` — negligible
     for any practical ``n``, and documented rather than hidden. Raises
-    ``ValueError`` for ``n < 1``.
+    ``ValueError`` for ``n < 1``. Uses word x1 of the block (x0 belongs
+    to :func:`philox_uniform`), so drawing both at the same
+    ``(key, counter)`` yields an independent pair.
     """
     if n < 1:
         raise ValueError("philox_randint: n must be >= 1")
-    x0, _, _, _ = philox4x64(
+    _, x1, _, _ = philox4x64(
         np.uint64(key), np.uint64(0), np.uint64(counter),
         np.uint64(0), np.uint64(0), np.uint64(0),
     )
-    return np.int64(_mulhi64(x0, np.uint64(n)))
+    return np.int64(_mulhi64(x1, np.uint64(n)))
 
 
 @cached_njit
@@ -125,6 +135,13 @@ def philox_uniforms(key, counter, size, out=None):
     call should start at ``counter + ceil(size / 4)``. Layout is fixed
     (word ``i % 4`` of block ``counter + i // 4``), so results are
     reproducible and splittable across workers.
+
+    ``out`` must be 1-D float64. Non-1-D buffers fail loudly at
+    compile time (they can't unify with the internal allocation), but
+    the float64 dtype is a CONTRACT, not a checked condition —
+    nopython code cannot compare dtypes at runtime, and a float32
+    buffer would silently truncate, breaking bit identity with the
+    no-``out`` path.
     """
     if size < 0:
         raise ValueError("philox_uniforms: size must be >= 0")

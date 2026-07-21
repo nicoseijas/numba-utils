@@ -328,3 +328,9 @@ class TestCombinationTable:
 
         assert count_pairs(5) == 10
         assert count_pairs(4) == 6
+
+    def test_element_cap_counts_columns(self):
+        # C(34, 8) = 18,156,204 rows fits the old ROW cap, but
+        # rows * 8 columns = 145M elements exceeds 2**27 — must raise
+        with pytest.raises(ValueError):
+            combination_table(34, 8)

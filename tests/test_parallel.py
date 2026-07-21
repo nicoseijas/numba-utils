@@ -247,3 +247,28 @@ class TestChunkedReduce:
             count(10, 0)
         with pytest.raises(TypeError):
             chunked_reduce(42)
+
+    def test_np_random_kernel_breaks_the_guarantee(self):
+        # The negative case for the bit-exactness contract: a kernel
+        # drawing from Numba's per-thread global RNG must NOT match
+        # between drivers — each thread has its own stream. Only
+        # demonstrable with real thread parallelism.
+        from numba import get_num_threads
+
+        if get_num_threads() < 2:
+            pytest.skip("needs >= 2 threads to demonstrate divergence")
+
+        from numba_utils.random import seed as nu_seed
+
+        @chunked_reduce
+        def rng_sum(chunk_id, start, end):
+            acc = 0.0
+            for _ in range(start, end):
+                acc += np.random.random()
+            return acc
+
+        nu_seed(0)
+        par = rng_sum(400_000, 64)
+        nu_seed(0)
+        ser = rng_sum(400_000, 64, parallel=False)
+        assert par != ser

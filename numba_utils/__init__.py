@@ -89,7 +89,9 @@ from numba_utils.random import (
     partial_shuffle,
     permutation,
     philox4x64,
+    philox_partial_shuffle,
     philox_randint,
+    philox_sample_without_replacement,
     philox_uniform,
     philox_uniforms,
     reservoir_sampling,
@@ -99,7 +101,7 @@ from numba_utils.random import (
     weighted_sampling,
 )
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 __all__ = [
     "BenchmarkResult",
@@ -159,7 +161,9 @@ __all__ = [
     "partial_sort",
     "permutation",
     "philox4x64",
+    "philox_partial_shuffle",
     "philox_randint",
+    "philox_sample_without_replacement",
     "philox_uniform",
     "philox_uniforms",
     "priority_queue_type",

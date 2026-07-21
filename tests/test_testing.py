@@ -169,11 +169,41 @@ class TestAssertConverges:
         assert (mean, se) == (0.5, 0.0)
 
     def test_validation(self):
+        # n_runs below 5 rejected: the t-statistic false-positive rate
+        # explodes (~20% at n_runs=2, ~4% at 5 — documented)
         with pytest.raises(ValueError):
-            assert_converges(lambda: 0.0, 0.0, n_runs=1)
+            assert_converges(lambda: 0.0, 0.0, n_runs=4)
         with pytest.raises(ValueError):
             assert_converges(lambda: 0.0, 0.0, sigma=0.0)
         with pytest.raises(ValueError):
             assert_converges(lambda: 0.0, np.inf)
         with pytest.raises(AssertionError, match="non-finite"):
-            assert_converges(lambda: np.nan, 0.5, n_runs=3)
+            assert_converges(lambda: np.nan, 0.5, n_runs=5)
+
+    def test_pass_seed_enables_counter_based_kernels(self):
+        from numba_utils.random import philox_uniform
+
+        def philox_mean(key):
+            acc = 0.0
+            for i in range(2000):
+                acc += philox_uniform(key, i)
+            return acc / 2000
+
+        # without pass_seed, a pure counter-based kernel has zero
+        # variance across global seeds and the assert cannot work
+        with pytest.raises(AssertionError, match="identical"):
+            assert_converges(lambda: philox_mean(1), 0.5, n_runs=5)
+        # with pass_seed, each run gets its own key -> real variance
+        mean, se = assert_converges(
+            philox_mean, 0.5, n_runs=10, pass_seed=True
+        )
+        assert se > 0
+        assert abs(mean - 0.5) < 0.05
+
+    def test_reproducible_pass_seed(self):
+        from numba_utils.random import philox_uniform
+
+        def draw(key):
+            return philox_uniform(key, 0)
+
+        assert_reproducible(draw, seed=5, pass_seed=True)

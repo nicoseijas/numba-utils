@@ -10,7 +10,9 @@ from numba_utils.random import (
     partial_shuffle,
     permutation,
     philox4x64,
+    philox_partial_shuffle,
     philox_randint,
+    philox_sample_without_replacement,
     philox_uniform,
     philox_uniforms,
     reservoir_sampling,
@@ -315,3 +317,86 @@ class TestSampleWithoutReplacement:
             sample_without_replacement(arr, 0)
         with pytest.raises(ValueError):
             sample_without_replacement(arr, 4)
+
+
+class TestPhiloxSampling:
+    def test_partial_shuffle_reproducible_and_valid(self):
+        a = np.arange(52, dtype=np.int64)
+        b = np.arange(52, dtype=np.int64)
+        philox_partial_shuffle(a, 5, 7, 100)
+        philox_partial_shuffle(b, 5, 7, 100)
+        np.testing.assert_array_equal(a, b)
+        assert len(set(a[:5].tolist())) == 5
+        assert sorted(a.tolist()) == list(range(52))
+
+    def test_disjoint_counters_differ(self):
+        a = philox_sample_without_replacement(
+            np.arange(52, dtype=np.int64), 5, 7, 0
+        )
+        b = philox_sample_without_replacement(
+            np.arange(52, dtype=np.int64), 5, 7, 5
+        )
+        assert a.tolist() != b.tolist()
+
+    def test_sample_no_duplicates_input_untouched(self):
+        deck = np.arange(52, dtype=np.int64)
+        out = philox_sample_without_replacement(deck, 7, 3, 0)
+        assert len(set(out.tolist())) == 7
+        np.testing.assert_array_equal(deck, np.arange(52))
+
+    def test_uniformity_of_first_slot(self):
+        counts = np.zeros(4, np.int64)
+        for it in range(4000):
+            arr = np.arange(4, dtype=np.int64)
+            philox_partial_shuffle(arr, 1, 13, it)
+            counts[arr[0]] += 1
+        assert counts.min() > 800
+
+    def test_errors(self):
+        with pytest.raises(ValueError):
+            philox_partial_shuffle(np.arange(3, dtype=np.int64), 4, 0, 0)
+        with pytest.raises(ValueError):
+            philox_sample_without_replacement(
+                np.arange(3, dtype=np.int64), 0, 0, 0
+            )
+
+    def test_callable_from_jitted_code(self):
+        @njit
+        def deal(deck, k, key, it):
+            scratch = deck.copy()
+            philox_partial_shuffle(scratch, k, key, it * k)
+            return scratch[:k]
+
+        deck = np.arange(52, dtype=np.int64)
+        first = deal(deck, 5, 7, 0)
+        again = deal(deck, 5, 7, 0)
+        np.testing.assert_array_equal(first, again)
+
+
+class TestPhiloxWordIndependence:
+    def test_uniform_and_randint_not_correlated(self):
+        # same (key, counter): randint uses word x1, uniform uses x0 —
+        # they must NOT be the same underlying number
+        n = 1_000_000
+        mismatches = sum(
+            philox_randint(5, c, n) != int(philox_uniform(5, c) * n)
+            for c in range(200)
+        )
+        assert mismatches > 150
+
+
+class TestAliasDrawValidation:
+    def test_mismatched_tables_raise(self):
+        prob, alias = alias_setup(np.array([1.0, 2.0, 3.0]))
+        with pytest.raises(ValueError):
+            alias_draw(prob, alias[:2])
+
+
+class TestPhiloxUniformsOutShape:
+    def test_2d_out_fails_loudly_at_compile(self):
+        # a non-1-D out can't unify with the internal allocation; the
+        # failure is a loud TypingError, never silent corruption
+        from numba.core.errors import TypingError
+
+        with pytest.raises(TypingError):
+            philox_uniforms(1, 0, 4, np.empty((4, 1)))

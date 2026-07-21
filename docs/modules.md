@@ -107,7 +107,9 @@ the Walker alias method as `alias_setup` / `alias_draw` /
 (Philox4x64-10, bit-identical to `np.random.Philox`):
 `philox_uniform` / `philox_uniforms` / `philox_randint` /
 `philox4x64` — pure functions of `(key, counter)`, reproducible
-regardless of threads, processes or call order.
+regardless of threads, processes or call order — and the composed
+variants `philox_partial_shuffle` / `philox_sample_without_replacement`
+that drive the Fisher–Yates primitives from a Philox stream.
 
 ## Developer tools
 
@@ -116,7 +118,7 @@ regardless of threads, processes or call order.
 - `assert_equivalent(reference, candidate, inputs)` — per-case array copies, failing case named, empty generators fail
 - `random_arrays` — generated cases plus the edges that break kernels
 - `assert_close`, `deterministic_rng` (pins all three RNG worlds)
-- Stochastic asserts: `assert_reproducible` (same seed → bit-identical) and `assert_converges` (different seeds → within N standard errors of the truth, false-positive rate documented)
+- Stochastic asserts: `assert_reproducible` (same seed → bit-identical) and `assert_converges` (different seeds → within N standard errors of the truth; the statistic is Student-t, real false-positive rates documented per `n_runs`). Both take `pass_seed=True` for counter-based (Philox) kernels, whose stream comes from an argument rather than global state.
 
 Strategy: [testing.md](testing.md).
 

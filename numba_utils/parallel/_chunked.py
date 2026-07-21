@@ -14,7 +14,17 @@ def chunked_reduce(
     func: Callable[..., Any] | None = None, /
 ) -> Callable[..., Any]:
     """Decorator: one per-chunk kernel, serial AND parallel drivers,
-    **bit-identical results across both**.
+    **bit-identical results across both — for kernels that are
+    deterministic functions of ``(chunk_id, start, end)``**.
+
+    That precondition is the contract, not a footnote: a kernel that
+    reads shared mutable state or draws from Numba's per-thread global
+    RNG (``np.random.*``) silently loses the guarantee, because each
+    thread has its own RNG stream. Use the counter-based
+    :func:`numba_utils.philox_uniform` over the chunk's index range and
+    determinism holds by construction. (The test suite includes the
+    negative case: an ``np.random`` kernel demonstrably diverges
+    between the two drivers.)
 
     ::
 
@@ -36,13 +46,11 @@ def chunked_reduce(
     - **Partials merge serially, in chunk order.** Threads write only
       their own slot; the reduction order is fixed.
 
-    So ``parallel=True`` and ``parallel=False`` return the SAME float,
-    and an A/B harness never needs to re-validate when switching
-    modes. Changing ``n_chunks`` legitimately changes rounding (a
-    different, documented partition), so pin it per experiment. Pair
-    the ``chunk_id``/index range with counter-based RNG
-    (:func:`numba_utils.philox_uniform`) and results are also
-    independent of how chunks are scheduled.
+    Under that precondition ``parallel=True`` and ``parallel=False``
+    return the SAME float, and an A/B harness never needs to
+    re-validate when switching modes. Changing ``n_chunks``
+    legitimately changes rounding (a different, documented partition),
+    so pin it per experiment.
 
     The kernel is jitted with the library defaults; the drivers are
     compiled per process (the closure over the kernel is not
@@ -59,7 +67,9 @@ def chunked_reduce(
             raise TypeError("chunked_reduce expects a callable to decorate")
         kernel = cached_njit(kernel_func)
 
-        @cached_njit
+        # cache=False like the parallel driver: both close over the
+        # kernel, which Numba cannot cache to disk (would warn).
+        @cached_njit(cache=False)
         def run_serial(n_items, n_chunks):
             chunk = (n_items + n_chunks - 1) // n_chunks
             partials = np.zeros(n_chunks, np.float64)

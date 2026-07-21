@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-07-21
+
+Contract fixes from the second round of user review: the 0.3.0
+primitives now compose with each other, two guarantees are stated no
+stronger than the code sustains, and one documented statistic was
+plain wrong. Two behavior changes, both declared below.
+
+### Added
+
+- **random** — `philox_partial_shuffle` and
+  `philox_sample_without_replacement`: the Fisher–Yates primitives
+  driven by the stateless Philox stream (consume counters
+  `counter..counter+k-1`). 0.3.0 shipped counter-based RNG and the MC
+  sampling primitive without a way to combine them; now the headline
+  features compose.
+- **testing** — `pass_seed=True` on `assert_reproducible` and
+  `assert_converges`: each run calls `fn(run_seed, ...)`, making
+  counter-based (Philox) kernels testable — they are pure functions of
+  their key, so varying global seeds alone gives zero variance.
+
+### Fixed
+
+- **testing** — `assert_converges` documented normal-distribution
+  false-positive rates (~0.27% at 3 sigma), but the SE is estimated
+  from the runs, so the statistic is Student-t with `n_runs - 1`
+  degrees of freedom: the real rates are ~0.55% at the default 30
+  runs, ~4% at 5, ~20% at 2. The docstring now carries the correct
+  table, and `n_runs < 5` is rejected (**behavior change**: previously
+  2+ was accepted).
+- **random** — `philox_randint` now consumes word x1 of the Philox
+  block (x0 belongs to `philox_uniform`), so drawing both at the same
+  `(key, counter)` yields an independent pair instead of perfectly
+  correlated noise (**behavior change**: `philox_randint`'s output
+  stream differs from 0.3.0).
+- **parallel** — `chunked_reduce`'s bit-exactness guarantee is now
+  stated with its real precondition in the headline: it holds for
+  kernels that are deterministic functions of `(chunk_id, start,
+  end)`; a kernel drawing from Numba's per-thread `np.random` loses it
+  silently. The test suite now includes the negative case proving the
+  divergence, and the serial driver no longer requests on-disk caching
+  for its uncacheable closure (spurious `NumbaWarning`).
+- **random** — `alias_draw` validates that `prob` and `alias` lengths
+  match (mixed-up tables would index out of range — silent corruption
+  in nopython); `weighted_sampling` clamps its search result as
+  defense in depth against a rounding-mode/RNG-granularity change ever
+  producing `u == total` (analytically unreachable today; verified).
+- **algorithms** — `combination_table`'s size cap now bounds total
+  ELEMENTS (rows × k, ~1 GiB of int64), not just rows — the old cap
+  "protected" against a 10 GiB allocation by allowing it.
+- **random** — the `np.uint64` requirement for keys/counters `>= 2**63`
+  from Python is documented at module level, not just on `philox4x64`;
+  `philox_uniforms` documents that its `out=` must be float64 (dtype
+  is uncheckable at runtime in nopython; non-1-D fails loudly at
+  compile time, now pinned by a test).
+
 ## [0.3.0] - 2026-07-21
 
 Phase 3: Monte Carlo primitives, driven by the first real-user

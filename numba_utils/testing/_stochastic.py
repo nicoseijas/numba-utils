@@ -33,27 +33,36 @@ def _assert_exactly_equal(a: Any, b: Any, context: str) -> None:
 
 
 def assert_reproducible(
-    fn: Callable[..., Any], args: tuple = (), *, seed: int = 0, runs: int = 2
+    fn: Callable[..., Any],
+    args: tuple = (),
+    *,
+    seed: int = 0,
+    runs: int = 2,
+    pass_seed: bool = False,
 ) -> Any:
-    """Assert ``fn(*args)`` is bit-identical across ``runs`` runs under
-    the same seed.
+    """Assert ``fn`` is bit-identical across ``runs`` runs under the
+    same seed.
 
     Before each run, :func:`deterministic_rng` pins all three random
     worlds (NumPy legacy, NumPy ``Generator``, Numba's separate
-    nopython state). A failure means ``fn`` draws from an unseeded
-    source — thread-scheduling-dependent RNG, wall clock, iteration
-    order of an unordered container. Returns the (verified) result of
-    the last run.
+    nopython state). With ``pass_seed=True``, ``fn`` is called as
+    ``fn(seed, *args)`` — the mode for counter-based kernels
+    (:func:`numba_utils.philox_uniform`), whose stream comes from an
+    argument rather than global state. A failure means ``fn`` draws
+    from an unseeded source — thread-scheduling-dependent RNG, wall
+    clock, iteration order of an unordered container. Returns the
+    (verified) result of the last run.
     """
     if not callable(fn):
         raise TypeError("assert_reproducible expects a callable")
     if runs < 2:
         raise ValueError("assert_reproducible: runs must be >= 2")
+    call_args = (seed, *args) if pass_seed else args
     deterministic_rng(seed)
-    reference = fn(*args)
+    reference = fn(*call_args)
     for r in range(1, runs):
         deterministic_rng(seed)
-        result = fn(*args)
+        result = fn(*call_args)
         _assert_exactly_equal(
             reference,
             result,
@@ -71,27 +80,47 @@ def assert_converges(
     n_runs: int = 30,
     sigma: float = 3.0,
     seed: int = 0,
+    pass_seed: bool = False,
 ) -> tuple[float, float]:
-    """Assert the mean of ``fn(*args)`` over ``n_runs`` differently-
-    seeded runs lies within ``sigma`` standard errors of ``truth``.
+    """Assert the mean of ``fn`` over ``n_runs`` differently-seeded
+    runs lies within ``sigma`` standard errors of ``truth``.
 
     Runs ``fn`` under seeds ``seed .. seed + n_runs - 1`` (each pinned
     via :func:`deterministic_rng`), estimates the standard error from
     the runs themselves (``std(ddof=1) / sqrt(n_runs)``), and asserts
-    ``|mean - truth| <= sigma * SE``. Returns ``(mean, se)``.
+    ``|mean - truth| <= sigma * SE``. Returns ``(mean, se)``. With
+    ``pass_seed=True``, each run calls ``fn(run_seed, *args)`` — the
+    mode for counter-based kernels (:func:`numba_utils.philox_uniform`),
+    which are pure functions of their key: vary the key per run or the
+    variance is zero and the test cannot work.
 
-    This is a statistical test: at the default ``sigma=3`` a CORRECT
-    implementation still fails about 0.27% of the time. Don't tighten
-    ``sigma`` to 2 in CI (4.6% false positives); if the test flakes at
-    3, suspect the code before the tolerance. A zero-variance result
+    This is a statistical test, and because the SE is ESTIMATED from
+    the runs, the statistic is Student-t with ``n_runs - 1`` degrees of
+    freedom — the false-positive rate for a CORRECT implementation is
+    higher than the normal-distribution intuition suggests:
+
+    ========  ==============================
+    n_runs    false positives at ``sigma=3``
+    ========  ==============================
+    30        ~0.55%
+    10        ~1.5%
+    5         ~4%
+    ========  ==============================
+
+    ``n_runs`` below 5 is rejected (at ``n_runs=2`` the rate would be
+    ~20%). Don't tighten ``sigma`` to 2 in CI; if the test flakes at 3,
+    suspect the code before the tolerance. A zero-variance result
     (every seed identical) is compared to ``truth`` exactly and fails
     with its own message — it usually means the seeds are not reaching
     the sampler.
     """
     if not callable(fn):
         raise TypeError("assert_converges expects a callable")
-    if n_runs < 2:
-        raise ValueError("assert_converges: n_runs must be >= 2")
+    if n_runs < 5:
+        raise ValueError(
+            "assert_converges: n_runs must be >= 5 (the t-statistic's "
+            "false-positive rate explodes below that; ~20% at n_runs=2)"
+        )
     if not (sigma > 0):
         raise ValueError("assert_converges: sigma must be > 0")
     if not math.isfinite(truth):
@@ -99,7 +128,10 @@ def assert_converges(
     values = np.empty(n_runs, np.float64)
     for r in range(n_runs):
         deterministic_rng(seed + r)
-        values[r] = float(fn(*args))
+        if pass_seed:
+            values[r] = float(fn(seed + r, *args))
+        else:
+            values[r] = float(fn(*args))
     if not np.all(np.isfinite(values)):
         raise AssertionError(
             "assert_converges: fn returned a non-finite value"

@@ -6,7 +6,7 @@ import numpy as np
 
 from numba_utils.decorators import cached_njit
 
-_MAX_TABLE_ROWS = 1 << 27
+_MAX_TABLE_ELEMENTS = 1 << 27
 
 
 @cached_njit
@@ -23,7 +23,8 @@ def combination_table(n, k):
 
     ``k = 0`` gives one empty combination (shape ``(1, 0)``). Raises
     ``ValueError`` if ``k`` is outside ``[0, n]`` or the table would
-    exceed 2**27 rows.
+    exceed 2**27 total ELEMENTS (rows × k — the cap bounds memory, ~1
+    GiB of int64, not just row count).
 
     Complexity: O(C(n, k) · k). Memory: O(C(n, k) · k).
     """
@@ -40,10 +41,15 @@ def combination_table(n, k):
     count = 1
     for i in range(kk):
         count = count * (n - i) // (i + 1)
-        if count > _MAX_TABLE_ROWS:
+        if count > _MAX_TABLE_ELEMENTS:
             raise ValueError(
-                "combination_table: C(n, k) exceeds 2**27 rows"
+                "combination_table: table exceeds 2**27 elements"
             )
+    # Rows are bounded; now bound MEMORY (rows × k elements).
+    if k > 0 and count > _MAX_TABLE_ELEMENTS // k:
+        raise ValueError(
+            "combination_table: table exceeds 2**27 elements"
+        )
     table = np.empty((count, k), np.int64)
     idx = np.arange(k)
     row = 0

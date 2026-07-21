@@ -80,6 +80,14 @@ give, and conflating them produces tests that are flaky or vacuous:
   from anything unseeded: thread-scheduling-dependent RNG, wall clock.
 - `assert_converges(fn, truth, n_runs=..., sigma=3)` — differently
   seeded runs must land within `sigma` standard errors of the truth.
-  This is a statistical test: at `sigma=3` a correct implementation
-  still fails ~0.27% of the time — that rate is part of the contract,
-  and tightening to 2 sigma (4.6%) is how CI gets flaky.
+  This is a statistical test, and because the SE is estimated from the
+  runs the statistic is Student-t with `n_runs - 1` degrees of
+  freedom: at `sigma=3` a correct implementation still fails ~0.55% of
+  the time with the default 30 runs (~4% at the minimum of 5). Those
+  rates are part of the contract; tightening `sigma` to 2 is how CI
+  gets flaky.
+
+Counter-based (Philox) kernels are pure functions of their key —
+varying global seeds gives zero variance. Both asserts take
+`pass_seed=True`, which passes each run's seed to `fn` so the key can
+vary per run.
