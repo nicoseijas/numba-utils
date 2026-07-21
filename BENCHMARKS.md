@@ -48,3 +48,17 @@ more than the difference above.
 | parallel_topk k=100 (20,000,000 f64) vs serial topk | 11.58 ms | 2.50 ms | 4.63x |
 
 Parallel float reductions reorder operations; results can differ from serial in the last bits (parallel_histogram is bit-exact). Gains depend on core count and memory bandwidth.
+
+## Graph
+
+| case | baseline | numba-utils | speedup |
+| --- | ---: | ---: | ---: |
+| bfs (50,000 nodes, 200,000 edges) (vs Python deque) | 11.43 ms | 0.96 ms | 11.89x |
+| dijkstra (50,000 nodes, 200,000 edges) (vs heapq) | 74.62 ms | 6.86 ms | 10.88x |
+| UnionFind churn (200,000 unions) (vs Python DSU) | 50.62 ms | 2.54 ms | 19.93x |
+
+Baselines are idiomatic pure Python over prebuilt adjacency lists (the
+realistic representation on each side); there is no NumPy equivalent
+for these. With SciPy available, `scipy.sparse.csgraph` is the
+vectorized alternative from Python — the value here is running inside
+`@njit` kernels without leaving nopython.

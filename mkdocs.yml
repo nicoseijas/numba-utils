@@ -70,6 +70,7 @@ nav:
       - Cache: design/cache.md
       - Typed Collections: design/collections.md
       - Parallel: design/parallel.md
+      - Graph: design/graph.md
       - RNG: design/rng.md
       - Benchmarking: design/benchmarking.md
   - Testing: testing.md

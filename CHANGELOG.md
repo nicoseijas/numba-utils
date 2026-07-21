@@ -11,6 +11,17 @@ Phase 2 opens: dtype-generic collections.
 
 ### Added
 
+- **graph** — new module: algorithms over CSR adjacency arrays
+  (`scipy.sparse.csr_matrix` layout, no Graph class). `edges_to_csr`
+  (stable; returns an `order` array to align per-edge payloads),
+  `bfs`, `dfs_preorder` (explicit stack, recursive-identical order),
+  `topological_sort` (Kahn, deterministic, raises on cycles),
+  `dijkstra` (lazy-deletion binary heap, zero allocation in the loop,
+  NaN/negative weights rejected up front), and `UnionFind` (jitclass,
+  union by size + path compression, `union` reports whether a merge
+  happened). Traversals bounds-check `indices` — malformed CSR raises
+  instead of corrupting memory. 10–20x over idiomatic pure Python
+  (BENCHMARKS.md, Graph section); rationale in docs/design/graph.md.
 - **algorithms** — `stable_argsort` and `lexsort`. `stable_argsort` is
   the honest alias for `np.argsort(kind="mergesort")` — the stable kind
   Numba actually compiles (`kind="stable"` does not). `lexsort` is

@@ -59,9 +59,13 @@ In value order:
    Shipped as an honest alias plus the composed lexsort; both lose to
    NumPy from Python (BENCHMARKS.md explains why) and exist for inside-
    `@njit` use.
-3. **`graph/` module** — structures that are genuinely painful in
-   nopython mode: `UnionFind` (jitclass), BFS/DFS over CSR adjacency,
-   topological sort, Dijkstra (on the existing `PriorityQueue`).
+3. **`graph/` module** ✅ — structures that are genuinely painful in
+   nopython mode: `edges_to_csr` (with payload-aligning `order`),
+   `UnionFind` (jitclass), BFS + DFS preorder over CSR, topological
+   sort (Kahn), Dijkstra. Dijkstra got its own lazy-deletion pair heap
+   rather than the payload-less `PriorityQueue` originally sketched.
+   10–20x over idiomatic pure Python (BENCHMARKS.md, Graph section);
+   design decisions in docs/design/graph.md.
 4. **Numerics that pass the identity filter** — `logsumexp`, `softmax`
    (stability-critical), `weighted_quantile` (no NumPy equivalent).
 

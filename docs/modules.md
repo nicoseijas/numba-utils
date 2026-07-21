@@ -67,6 +67,20 @@ allocator with double-release detection). Plus `counter` and
 to any Numba scalar type, cached per type (`stack_type(float64) is
 Stack`). Index-domain containers stay int64.
 
+### `numba_utils.graph`
+
+Graph algorithms over CSR adjacency arrays (`indptr`, `indices` — the
+`scipy.sparse.csr_matrix` layout; no Graph class, arrays are the
+nopython-native currency): `edges_to_csr` (stable, returns an `order`
+array to align per-edge payloads like weights), `bfs` (hop distances,
+-1 unreachable), `dfs_preorder` (explicit stack, matches the recursive
+order), `topological_sort` (Kahn, deterministic lowest-index-first,
+raises on cycles), `dijkstra` (lazy-deletion binary heap, rejects
+NaN/negative weights, `inf` = unreachable), and `UnionFind` (jitclass;
+union by size + path compression, `union` returns whether a merge
+happened). `indices` entries are bounds-checked during traversal — a
+malformed CSR raises instead of corrupting memory.
+
 ### `numba_utils.random`
 
 Over Numba's nopython RNG, which is separate from NumPy's — seed it
