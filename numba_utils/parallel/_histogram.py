@@ -10,6 +10,13 @@ from numba_utils.arrays._hist import MAX_HISTOGRAM_BINS
 from numba_utils.decorators import njit_parallel
 
 _SERIAL_THRESHOLD = 1 << 16
+# Budget for the per-thread private tables, in int64 slots (2**27 =
+# 1 GiB total). The library-wide bins cap (2**30) bounds ONE row at
+# 8 GiB — multiplied by n_threads that is a working set the cap alone
+# does not see (256 GiB at 32 threads). Past this budget the O(threads
+# · bins) merge dominates the parallel gain anyway, so the serial
+# fallback loses little.
+_MAX_PRIVATE_SLOTS = 1 << 27
 
 
 # cache=False explicitly: get_num_threads makes the parfor-transformed
@@ -26,7 +33,10 @@ def parallel_histogram(arr, bins, lo, hi):
     :func:`numba_utils.histogram`, which it falls back to below the size
     threshold.
 
-    Complexity: O(n + threads·bins). Memory: O(threads·bins).
+    Complexity: O(n + threads·bins). Memory: O(threads·bins), bounded:
+    past a 1 GiB private-table budget (``threads·bins`` over 2**27
+    slots) it delegates to the serial kernel — the bins cap alone
+    bounds one row, not the per-thread multiplication.
     """
     n = arr.shape[0]
     # Check the bin cap BEFORE the serial delegation so the same bins
@@ -59,6 +69,12 @@ def parallel_histogram(arr, bins, lo, hi):
     # Pad each thread's row to a multiple of 8 int64 (= 64 bytes) so two
     # threads never share a cache line.
     padded = ((bins + 7) // 8) * 8
+    # The acceptance surface (bins cap) is library-wide and unchanged;
+    # what the budget bounds is the PRIVATE working set, which scales
+    # with n_threads and is invisible to the caller. Same result either
+    # way: the serial kernel is bit-exact with the merge.
+    if n_threads * padded > _MAX_PRIVATE_SLOTS:
+        return histogram(arr, bins, lo, hi)
     private = np.zeros((n_threads, padded), np.int64)
     chunk = (n + n_threads - 1) // n_threads
     for t in prange(n_threads):

@@ -90,6 +90,24 @@ class TestParallelHistogram:
         with pytest.raises(ValueError):
             parallel_histogram(arr, 8, 1.0, 1.0)
 
+    def test_private_table_budget_falls_back_to_serial(self):
+        # 0.4.0-verdict regression: the bins cap bounds ONE counts row,
+        # but the parallel path allocates n_threads of them — a bins
+        # the cap accepts produced a ~185 GB live working set. Past a
+        # 1 GiB private-table budget the kernel must delegate to the
+        # serial path (bit-exact), not allocate per-thread rows.
+        from numba import get_num_threads
+
+        from numba_utils.arrays import histogram
+        from numba_utils.parallel._histogram import _MAX_PRIVATE_SLOTS
+
+        bins = _MAX_PRIVATE_SLOTS // get_num_threads() + 8
+        arr = RNG.random(1 << 16)  # above the serial size threshold
+        np.testing.assert_array_equal(
+            parallel_histogram(arr, bins, 0.0, 1.0),
+            histogram(arr, bins, 0.0, 1.0),
+        )
+
     def test_ignores_nan(self):
         # An unfiltered NaN indexes out of the private counts row
         # (int(NaN) is INT64_MIN) — must be skipped like out-of-range.
