@@ -360,6 +360,10 @@ class TestDtypeGenericFactories:
                 factory(np.int64)
             with pytest.raises(TypeError):
                 factory(int)
+            # unhashable arguments get the friendly message, not the
+            # cache dict's "unhashable type"
+            with pytest.raises(TypeError, match="numba scalar type"):
+                factory([1, 2])
 
     def test_priority_queue_rejects_complex(self):
         with pytest.raises(TypeError):

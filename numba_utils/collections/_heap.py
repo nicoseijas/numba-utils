@@ -19,12 +19,15 @@ def priority_queue_type(value_type):
     (complex is rejected). For a max-heap, push negated values. Cached
     per type: ``priority_queue_type(float64) is PriorityQueue``.
     """
-    cached = _PRIORITY_QUEUE_CACHE.get(value_type)
-    if cached is not None:
-        return cached
+    # Validate before touching the cache (friendly TypeError for
+    # unhashable arguments), setdefault at the end so concurrent first
+    # calls all get one winning class — see _stack_queue.py.
     np_dtype = validate_value_type(
         "priority_queue_type", value_type, ordered=True
     )
+    cached = _PRIORITY_QUEUE_CACHE.get(value_type)
+    if cached is not None:
+        return cached
 
     @jitclass([("_data", value_type[:]), ("_size", int64)])
     class PriorityQueue:
@@ -90,8 +93,7 @@ def priority_queue_type(value_type):
         def is_empty(self):
             return self._size == 0
 
-    _PRIORITY_QUEUE_CACHE[value_type] = PriorityQueue
-    return PriorityQueue
+    return _PRIORITY_QUEUE_CACHE.setdefault(value_type, PriorityQueue)
 
 
 # The ready-to-use float64 specialization — the same class the factory

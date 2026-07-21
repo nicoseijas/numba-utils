@@ -35,10 +35,12 @@ def stack_type(value_type):
     the same ``value_type`` always yields the same class, so instances
     from separate calls share one compiled specialization.
     """
+    # Validate before touching the cache: an unhashable argument must
+    # get the friendly TypeError, not the dict's.
+    np_dtype = validate_value_type("stack_type", value_type)
     cached = _STACK_CACHE.get(value_type)
     if cached is not None:
         return cached
-    np_dtype = validate_value_type("stack_type", value_type)
 
     @jitclass([("_data", value_type[:]), ("_size", int64)])
     class Stack:
@@ -75,8 +77,10 @@ def stack_type(value_type):
         def is_empty(self):
             return self._size == 0
 
-    _STACK_CACHE[value_type] = Stack
-    return Stack
+    # setdefault so concurrent first calls all get one winning class —
+    # a plain assignment could leave two live classes for one dtype,
+    # breaking the documented `is` identity.
+    return _STACK_CACHE.setdefault(value_type, Stack)
 
 
 def fixed_queue_type(value_type):
@@ -87,10 +91,10 @@ def fixed_queue_type(value_type):
     overwrite-oldest semantics use :func:`ring_buffer_type`. Cached per
     type like :func:`stack_type`.
     """
+    np_dtype = validate_value_type("fixed_queue_type", value_type)
     cached = _FIXED_QUEUE_CACHE.get(value_type)
     if cached is not None:
         return cached
-    np_dtype = validate_value_type("fixed_queue_type", value_type)
 
     @jitclass([("_data", value_type[:]), ("_head", int64), ("_size", int64)])
     class FixedQueue:
@@ -129,8 +133,7 @@ def fixed_queue_type(value_type):
         def is_full(self):
             return self._size == self._data.shape[0]
 
-    _FIXED_QUEUE_CACHE[value_type] = FixedQueue
-    return FixedQueue
+    return _FIXED_QUEUE_CACHE.setdefault(value_type, FixedQueue)
 
 
 def ring_buffer_type(value_type):
@@ -141,10 +144,10 @@ def ring_buffer_type(value_type):
     container (rolling windows, telemetry). O(1) push and random access
     to recent values. Cached per type like :func:`stack_type`.
     """
+    np_dtype = validate_value_type("ring_buffer_type", value_type)
     cached = _RING_BUFFER_CACHE.get(value_type)
     if cached is not None:
         return cached
-    np_dtype = validate_value_type("ring_buffer_type", value_type)
 
     @jitclass([("_data", value_type[:]), ("_next", int64), ("_size", int64)])
     class RingBuffer:
@@ -186,8 +189,7 @@ def ring_buffer_type(value_type):
         def is_full(self):
             return self._size == self._data.shape[0]
 
-    _RING_BUFFER_CACHE[value_type] = RingBuffer
-    return RingBuffer
+    return _RING_BUFFER_CACHE.setdefault(value_type, RingBuffer)
 
 
 # The ready-to-use float64 specializations — same classes the factories
