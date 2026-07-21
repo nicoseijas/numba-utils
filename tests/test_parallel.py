@@ -289,3 +289,11 @@ class TestParallelHistogramDegenerateArgs:
         arr = np.zeros(SERIAL_THRESHOLD * 2)
         with pytest.raises(ValueError):
             parallel_histogram(arr, 64, 0.0, 5e-324)
+
+    def test_bins_cap_not_evaded_below_serial_threshold(self):
+        # the same oversized bins must be rejected regardless of array
+        # length — below the serial threshold the check used to be
+        # skipped by delegating to the serial path first (issue #12)
+        small = np.random.default_rng(0).random(1000)  # < SERIAL_THRESHOLD
+        with pytest.raises(ValueError):
+            parallel_histogram(small, 2**31, 0.0, 1.0)

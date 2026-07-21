@@ -6,6 +6,11 @@ import numpy as np
 
 from numba_utils.decorators import cached_njit
 
+# Shared bin cap: 2**30 int64 counts is already 8 GiB, and near 2**63
+# the (bins + 7) padding arithmetic in the parallel path overflows.
+# Library-wide so serial and parallel draw the same line.
+MAX_HISTOGRAM_BINS = 1 << 30
+
 
 @cached_njit
 def bincount(arr, minlength=0):
@@ -39,10 +44,25 @@ def histogram(arr, bins, lo, hi):
     why this beats ``np.histogram``. Values outside ``[lo, hi]`` and NaN
     are ignored; ``hi`` itself lands in the last bin (NumPy convention).
 
+    Two boundary caveats of the scaling approach (vs NumPy's edge array):
+
+    - Edge-adjacent values can land one bin away from
+      ``np.histogram``'s assignment in narrow ranges — the per-bin
+      counts may differ by a small amount while the total is identical.
+      Use ``np.histogram`` when exact edge placement matters.
+    - A degenerate ``hi - lo`` (overflowing to inf, or subnormal so
+      ``bins / (hi - lo)`` is inf) cannot be binned by scaling and
+      raises rather than silently placing every value in bin 0. The
+      rejected surface is ``hi - lo < bins / 1.8e308`` — NumPy handles
+      part of it via bin edges, so prefer ``np.histogram`` for
+      extreme-magnitude ranges.
+
     Complexity: O(n + bins). Memory: O(bins).
     """
     if bins < 1:
         raise ValueError("histogram: bins must be >= 1")
+    if bins > MAX_HISTOGRAM_BINS:
+        raise ValueError("histogram: bins too large (> 2**30)")
     if not (np.isfinite(lo) and np.isfinite(hi)):
         raise ValueError("histogram: lo and hi must be finite")
     if not lo < hi:

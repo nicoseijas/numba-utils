@@ -131,13 +131,19 @@ class TestBoundscheck:
         # nothing). The dev build must never touch the cache — not
         # even under a global cache=True override or an explicit
         # per-call argument.
+        import warnings
+
         monkeypatch.setenv(DEV_MODE_ENV_VAR, "1")
         monkeypatch.setenv(CACHE_ENV_VAR, "1")
 
         fn = boundscheck(_sum_impl)
         assert type(fn._cache).__name__ == "NullCache"
-        fn_explicit = boundscheck(cache=True)(_sum_impl)
+        # explicit cache=True is overridden AND warns (issue #14)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            fn_explicit = boundscheck(cache=True)(_sum_impl)
         assert type(fn_explicit._cache).__name__ == "NullCache"
+        assert any(issubclass(w.category, RuntimeWarning) for w in caught)
 
     def test_boundscheck_kwarg_never_caches_either(self, monkeypatch):
         # The invariant lives in the option-merge layer, so it covers
@@ -148,3 +154,26 @@ class TestBoundscheck:
         for decorator in (cached_njit, njit_fast):
             fn = decorator(boundscheck=True)(_sum_impl)
             assert type(fn._cache).__name__ == "NullCache"
+
+    def test_explicit_cache_true_override_warns(self, monkeypatch):
+        # the boundscheck->cache=False invariant stands, but silently
+        # dropping an EXPLICIT cache=True contradicts configure()'s
+        # fail-fast stance (issue #14) — it must warn
+        monkeypatch.delenv(DEV_MODE_ENV_VAR, raising=False)
+        import warnings
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            fn = cached_njit(cache=True, boundscheck=True)(_sum_impl)
+        assert type(fn._cache).__name__ == "NullCache"
+        assert any(issubclass(w.category, RuntimeWarning) for w in caught)
+
+    def test_boundscheck_default_override_is_silent(self, monkeypatch):
+        # no explicit cache=True -> no warning (the default path)
+        monkeypatch.setenv(DEV_MODE_ENV_VAR, "1")
+        import warnings
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            boundscheck(_sum_impl)
+        assert not any(issubclass(w.category, RuntimeWarning) for w in caught)

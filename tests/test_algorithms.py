@@ -348,11 +348,21 @@ class TestIntegerDtypeGate:
                 fn(np.array([1.5, 2.5]))
 
     def test_sparse_range_relative_to_n_raises(self):
-        # 2 elements spanning 2**20 would allocate and scan a million
-        # counts to sort 2 values — counting sort's O(range) term must
-        # be guarded relative to n, not only in absolute terms
+        # 2 elements spanning 2**27 would allocate and scan a 1 GiB
+        # counts array to sort 2 values — rejected on both the
+        # absolute (> 2**20) and relative (> 64n) legs of the guard
         with pytest.raises(ValueError):
-            counting_sort(np.array([0, 2**20], dtype=np.int64))
+            counting_sort(np.array([0, 2**27], dtype=np.int64))
+
+    def test_canonical_dense_range_accepted(self):
+        # the guard must NOT reject canonical counting-sort inputs:
+        # uint16 codes over n~1000, or a few hundred values over 10k —
+        # both dense enough that counting sort wins (issue #11)
+        rng = np.random.default_rng(0)
+        arr = rng.integers(0, 65_536, 1000).astype(np.int64)
+        np.testing.assert_array_equal(counting_sort(arr), np.sort(arr))
+        arr2 = rng.integers(0, 10_000, 300).astype(np.int64)
+        np.testing.assert_array_equal(counting_sort(arr2), np.sort(arr2))
 
     def test_bool_dtype_still_accepted(self):
         # 0.3.2's integer gate accidentally rejected bool, which

@@ -92,11 +92,11 @@ def counting_sort(arr):
 
     Non-comparison sort: O(n + range) where range = max - min + 1. Wins
     when the value range is small relative to n (codes, buckets, bytes).
-    Raises ``ValueError`` when the range exceeds 2**27 OR grows far
-    beyond n (``range > 16n + 4096``) — in both regimes
-    :func:`radix_sort` is strictly better, and the O(range) memory and
-    scan would silently dominate. Integer dtypes only (enforced at
-    compile time).
+    Raises ``ValueError`` when the range exceeds 2**27, or when it is
+    large both absolutely (> 2**20, an 8 MiB counts array) AND relative
+    to n (``range > 64n``) — there :func:`radix_sort` is strictly
+    better and the O(range) memory and scan would dominate. Integer
+    dtypes only (enforced at compile time).
 
     Complexity: O(n + range). Memory: O(n + range).
     """
@@ -122,11 +122,14 @@ def counting_sort(arr):
             "counting_sort: value range too large (> 2**27), use radix_sort"
         )
     value_range = np.int64(dist) + 1
-    # Counting sort is O(n + range): a range far beyond n allocates
-    # and scans range entries to sort n elements (2 elements spanning
-    # 2**27 would build a 1 GiB counts array). Where range >> n,
-    # radix_sort is strictly better — fail fast and say so.
-    if value_range > 16 * n + 4096:
+    # Counting sort is O(n + range): a range far beyond n allocates and
+    # scans range entries to sort n elements. Reject only when the
+    # range is large BOTH absolutely (the counts array itself is big —
+    # 2**20 int64 = 8 MiB) AND relatively (range >> n, where radix_sort
+    # wins). This admits the canonical regimes (uint16 codes over
+    # n~1000, a few hundred values spanning 10k) while still rejecting
+    # the pathological 2-elements-spanning-2**27 = 1 GiB case.
+    if value_range > (1 << 20) and value_range > 64 * n:
         raise ValueError(
             "counting_sort: value range too large relative to n, "
             "use radix_sort"

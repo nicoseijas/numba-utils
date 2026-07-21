@@ -10,6 +10,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Phase 4 opens: certification primitives contributed from a production
 PLO5 CFR solver (items 1–2 of the contribution roadmap).
 
+### Fixed
+
+- **algorithms** — `counting_sort`'s range guard was too aggressive
+  (`range > 16n + 4096` rejected canonical inputs: uint16 codes over
+  n~1000, a few hundred values over 10k). It now rejects only when the
+  range is large both absolutely (> 2**20, 8 MiB counts) AND relative
+  to n (`range > 64n`) — the 1 GiB pathological case stays rejected,
+  the dense regimes are admitted. (#11)
+- **arrays / parallel** — the `bins > 2**30` cap is now library-wide:
+  `histogram` enforces it too (it had none), and `parallel_histogram`
+  checks it before delegating to the serial path, so the same `bins`
+  is accepted or rejected regardless of array length. (#12)
+- **arrays** — `histogram` documents the two boundary behaviors of
+  binning-by-scaling: edge-adjacent values can land one bin off
+  `np.histogram` in narrow ranges (total identical), and the
+  degenerate-span rejection (`hi - lo < bins / 1.8e308`) trades a
+  silently-false result for a loud error — prefer `np.histogram` for
+  extreme-magnitude ranges. (#13)
+- **decorators** — the boundscheck→`cache=False` invariant now warns
+  when it overrides an EXPLICIT `cache=True` (per-call kwarg), matching
+  `configure()`'s fail-fast stance; the override still stands. (#14)
+
+### Docs
+
+- Upgrade note in docs/numba-cache.md: Numba's cache key does not
+  include the numba-utils version, so a stale `__pycache__` can make a
+  process load an old binary and skip a compile-time validation gate
+  added in a release. Clear `__pycache__` (or run once with
+  `NUMBA_UTILS_CACHE=0`) after upgrading. (#15)
+
 ### Added
 
 - **algorithms** — the Phase 4 flagship: `disjoint_rank_aggregate` and

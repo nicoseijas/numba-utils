@@ -16,6 +16,7 @@ not abstractions.
 from __future__ import annotations
 
 import os
+import warnings
 from typing import Any, Callable
 
 from numba import njit
@@ -61,6 +62,18 @@ def _apply_njit(
     # including cached_njit(boundscheck=True), which bypasses the
     # boundscheck() decorator entirely.
     if options.get("boundscheck"):
+        # Warn if this silently overrides an EXPLICIT cache=True (a
+        # per-call kwarg), matching configure()'s fail-fast stance —
+        # the override stands (it is a safety invariant) but is audible.
+        if overrides.get("cache") is True:
+            warnings.warn(
+                "boundscheck=True forces cache=False (Numba's cache key "
+                "ignores boundscheck, so a shared cache would poison "
+                "checked and unchecked callers) — your explicit "
+                "cache=True was overridden.",
+                RuntimeWarning,
+                stacklevel=3,
+            )
         options["cache"] = False
     if func is None:
         return lambda f: _apply_njit(f, options, {}, locked)

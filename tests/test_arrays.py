@@ -223,3 +223,9 @@ class TestHistogramDegenerateInputs:
             histogram(np.ones(3), 4, -np.inf, np.inf)
         with pytest.raises(ValueError):
             histogram(np.ones(3), 4, 0.0, np.nan)
+
+    def test_bins_cap_is_library_wide(self):
+        # the cap must be a property of the library, not one path or
+        # one input size (issue #12): serial rejects it too
+        with pytest.raises(ValueError):
+            histogram(np.ones(3), 2**31, 0.0, 1.0)

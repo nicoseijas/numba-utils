@@ -6,6 +6,7 @@ import numpy as np
 from numba import get_num_threads, prange
 
 from numba_utils.arrays import histogram
+from numba_utils.arrays._hist import MAX_HISTOGRAM_BINS
 from numba_utils.decorators import njit_parallel
 
 _SERIAL_THRESHOLD = 1 << 16
@@ -28,17 +29,18 @@ def parallel_histogram(arr, bins, lo, hi):
     Complexity: O(n + threads·bins). Memory: O(threads·bins).
     """
     n = arr.shape[0]
-    if n < _SERIAL_THRESHOLD:
-        return histogram(arr, bins, lo, hi)
+    # Check the bin cap BEFORE the serial delegation so the same bins
+    # is accepted or rejected regardless of array length (the cap is a
+    # library-wide contract, not a property of one path). Near 2**63
+    # the (bins + 7) padding arithmetic below would overflow int64 into
+    # a negative dimension, which parallel lowering turns into an
+    # out-of-bounds write instead of a clean allocation error.
     if bins < 1:
         raise ValueError("parallel_histogram: bins must be >= 1")
-    # Cap BEFORE the padding arithmetic: near 2**63 the (bins + 7)
-    # rounding overflows int64 into a negative dimension, which the
-    # parallel lowering turns into an out-of-bounds write instead of a
-    # clean allocation error. 2**30 int64 rows are already 8 GiB —
-    # anything larger is a mistake, rejected loudly.
-    if bins > (1 << 30):
+    if bins > MAX_HISTOGRAM_BINS:
         raise ValueError("parallel_histogram: bins too large (> 2**30)")
+    if n < _SERIAL_THRESHOLD:
+        return histogram(arr, bins, lo, hi)
     if not (np.isfinite(lo) and np.isfinite(hi)):
         raise ValueError("parallel_histogram: lo and hi must be finite")
     if not lo < hi:

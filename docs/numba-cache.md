@@ -85,6 +85,20 @@ every cached function fails with `RuntimeError: cannot cache function
 wholesale with that error, copy the tree to a short real path (or set
 `NUMBA_UTILS_CACHE=0`) before concluding anything about the code.
 
+## Upgrading numba-utils: clear the cache
+
+Numba's on-disk cache key does not include the numba-utils version.
+After upgrading, a `__pycache__` left over from the previous version
+makes a process LOAD the old cached binary instead of recompiling — so
+behavior changes that only take effect at compile time (a new
+dtype-validation gate, a changed kernel) silently do not apply until
+the cache is rebuilt. The old binary keeps running; nothing warns.
+
+After upgrading, clear `__pycache__` (or run once with
+`NUMBA_UTILS_CACHE=0`) so the new version recompiles. This matters most
+for validation gates added in a release — a runtime check always runs,
+but a compile-time one only runs when Numba actually recompiles.
+
 `diagnostics.check(fn)` warns when a function has caching enabled and
 tells you exactly this.
 
