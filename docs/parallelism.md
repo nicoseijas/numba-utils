@@ -76,6 +76,74 @@ the difference for reductions rather than assume it.
 `diagnostics.check(fn)` flags `parallel=True` functions with a summary
 of these caveats.
 
+## Locating an intermittent segfault
+
+Nopython code has no bounds checking, so an out-of-bounds read is
+undefined behavior: it *sometimes* crashes and sometimes returns
+garbage. The garbage case is the dangerous one — if the same buggy
+kernel feeds both sides of a comparison, garbage agrees with garbage
+and the test passes. A "flaky segfault" that shows up on some runs and
+not others is usually this, not the threadpool.
+
+To locate it, run under **`python -X faulthandler`** (or call
+`faulthandler.enable()` at startup). On the crash it prints the exact
+`file:line` of the access violation — which distinguishes an OOB read
+in your kernel from a threadpool-teardown crash (the one that fires at
+interpreter exit, after the work is done) in seconds. Without it, both
+look like the same opaque `0xC0000005`.
+
+In a test runner that has finished its real work but risks a teardown
+segfault poisoning the exit code, `os._exit(0)` after flushing output
+skips Numba's threadpool teardown deterministically. Use it only once
+results are safely written — it bypasses `atexit` handlers and buffer
+flushing, so flush first.
+
+## Two patterns worth knowing (not shipped as API)
+
+These come from a production CFR solver and are documented rather than
+packaged: each is safe only under conditions the caller must own, so a
+library function would either hide the precondition or over-constrain
+the use. They belong in your kernel, with the caveat attached.
+
+### Hogwild: lock-free racing accumulation
+
+A `prange` over independent tasks, each updating shared accumulator
+arrays (regrets, strategies) with **racing, unsynchronized adds** — no
+locks, no atomics. Individual `+=` updates can be lost to the race, yet
+in the solver this gave ~60x with convergence *unchanged* (the
+correlation to the reference fixed point actually strengthened).
+
+The precondition is everything: this is safe only when the algorithm
+tolerates lossy updates because it is **iterative and
+self-correcting** — a dropped regret increment is re-accumulated on the
+next visit, and the fixed point is an average over many iterations.
+Apply Hogwild to a computation that needs every write (a histogram, an
+exact sum) and it silently produces wrong counts. That is exactly why
+`numba_utils.parallel_histogram` uses per-thread private rows merged
+serially instead: same shape, opposite requirement. Know which one you
+have before racing.
+
+### Factorized independent-opponent aggregation
+
+Replacing a Θ(B^P) joint over P independent factors with a per-item
+**product of factor CDFs**, Θ(items·B·P) — linear in P instead of
+exponential. In the solver, a P-way all-in pot share that looked like
+it needed a joint bucket tensor `share[i,j,k,...]` factorizes, given
+independent opponent reaches, into a product of per-opponent
+beat/tie CDFs integrated over `[0,1]` (the tie identity
+`1/(K+1) = ∫₀¹ xᴷ dx` handles ties exactly). The exponential "wall" was
+an artifact of precomputing the joint tensor instead of folding the
+factors in at aggregation time.
+
+The precondition is **independence** of the factors. Where it holds,
+5/6/7-way is as cheap as 3-way; where the factors are correlated the
+product is wrong and there is no cheap fix. A related anti-pattern from
+the same solver, kept as a warning: a "fast" prefix-sum variant that
+dropped the hero-opponent removal term was rejected at ~44% error —
+the shortcut changed the answer, and only a dense cross-check caught
+it. Certify a factorized kernel against the dense joint on *random*
+(not uniform) inputs before trusting it.
+
 ## The `numba_utils.parallel` module
 
 These rules are embodied as complete operations, not prange wrappers:

@@ -34,6 +34,20 @@ PLO5 CFR solver (items 1–2 of the contribution roadmap).
 
 ### Docs
 
+- docs/parallelism.md — `python -X faulthandler` for locating an
+  intermittent segfault (an OOB read returns garbage as often as it
+  crashes, and garbage-agrees-with-garbage passes a comparison test;
+  faulthandler prints the exact `file:line`, distinguishing it from a
+  teardown crash), and `os._exit(0)` after flush to skip Numba's
+  threadpool teardown in a test runner. Completes Phase 4 item 4.
+- docs/parallelism.md — two production patterns documented rather than
+  packaged (each safe only under a caller-owned precondition): Hogwild
+  lock-free racing accumulation (safe for self-correcting iteration,
+  wrong for exact counts — the opposite of what `parallel_histogram`
+  needs) and factorized independent-opponent aggregation (Θ(items·B·P)
+  vs Θ(B^P), valid under factor independence), with the rejected
+  drop-removal prefix-sum anti-pattern (44% error) as the
+  counterexample. Completes Phase 4 item 5.
 - Upgrade note in docs/numba-cache.md: Numba's cache key does not
   include the numba-utils version, so a stale `__pycache__` can make a
   process load an old binary and skip a compile-time validation gate

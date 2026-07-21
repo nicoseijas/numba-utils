@@ -133,13 +133,17 @@ second):
    build/eval split (fixed topology, changing weights — the
    alias_setup pattern). Ships with its dense-reference +
    drop-removal-mutation certification.
-4. **Production gotchas, the still-new bits** — `python -X
-   faulthandler` for OOB-vs-teardown triage in seconds; `os._exit()`
-   after flush in test runners. Docs only.
-5. **Hogwild accumulation + factorized independent aggregation** — as
-   documented PATTERNS (with the rejected prefix-sum anti-pattern, 44%
-   error, as the counterexample), not as API: "safe for this
-   convergence structure" is not a library contract.
+4. ✅ **Production gotchas, the still-new bits** — `python -X
+   faulthandler` for OOB-vs-teardown triage; `os._exit()` after flush
+   in test runners. Docs only, in docs/parallelism.md.
+5. ✅ **Hogwild accumulation + factorized independent aggregation** —
+   documented as PATTERNS (with the rejected prefix-sum anti-pattern,
+   44% error, as the counterexample), not API: each is safe only under
+   a caller-owned precondition (lossy-tolerant iteration; factor
+   independence) that a library function would hide or over-constrain.
+   docs/parallelism.md.
+
+Phase 4 complete.
 
 Also declined: changing the `cache=True` default. The contributor's
 own adoption gate passed with the first-class `NUMBA_UTILS_CACHE=0`
