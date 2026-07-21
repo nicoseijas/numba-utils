@@ -79,6 +79,35 @@ Rules of engagement, unchanged: every addition arrives with tests
 full chain (Python → NumPy → Numba → numba-utils), honest docs about
 when NOT to use it, and NaN/overflow behavior stated or validated.
 
+## Phase 3 — MC primitives (user-driven, in progress)
+
+First real-user feedback: a production Monte Carlo equity engine
+evaluated 0.2.0 for adoption and named five gaps, all squarely inside
+the project's pitch. In implementation order:
+
+1. **Counter-based RNG (Philox4x64-10)** — stateless
+   `philox_uniform(key, counter)` / `philox_uniforms` /
+   `philox_randint`: reproducible streams independent of thread count
+   and call order, the primitive that prevents "result depends on how
+   many chunks/workers ran" artifacts. NumPy ships the same algorithm
+   (`np.random.Philox`), so tests assert EXACT equality against an
+   independent reference (offset by one block: NumPy increments the
+   counter before generating).
+2. **`sample_without_replacement` / `partial_shuffle`** — partial
+   Fisher–Yates: k of n without shuffling the whole deck; the in-place
+   variant is the zero-allocation repeated-draw MC primitive.
+3. **`combination_table(n, k)`** — the C(n,k) index table plus its
+   true length in one call; kills the hardcoded-combo-count bug class
+   endemic to hand evaluators.
+4. **`chunked_reduce`** — one kernel body, serial and parallel
+   drivers, **bit-exact across both**: chunk boundaries depend only on
+   (n_items, n_chunks), never on thread count; partials merge serially
+   in chunk order. Pairs with Philox (chunk id -> counter).
+5. **`assert_reproducible` / `assert_converges`** — the stochastic
+   complement of `assert_equivalent`: same seed -> bit-identical;
+   different seeds -> within N sigma of truth, with the false-positive
+   rate documented.
+
 ## Later / open questions
 
 - Dtype-generic `SparseSet`/`BitSet` universes beyond int64 indices —
