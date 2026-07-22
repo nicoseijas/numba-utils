@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-07-21
+
 The low-priority backlog, retired after sitting at 12/12 through four
 releases. Grouped as the audit grouped it: profiling accuracy, contract
 honesty in `arrays`/`algorithms`/`random`, and one documented Numba
