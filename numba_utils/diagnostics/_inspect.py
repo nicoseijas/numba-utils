@@ -178,8 +178,10 @@ def check(fn: Any, *, verbose: bool = True) -> list[str]:
     if not report.signatures:
         flags.append(
             "not compiled yet: the first call pays the full JIT cost. Call "
-            "warmup() before timing or serving latency-sensitive traffic. "
-            "See docs/benchmarking.md."
+            "warmup() before timing or serving latency-sensitive traffic — "
+            "once PER argument dtype combination you will serve "
+            "(warmup_signatures() for several; one call warms one "
+            "signature). See docs/benchmarking.md."
         )
     elif len(report.signatures) > _SIGNATURE_CHURN_THRESHOLD:
         flags.append(

@@ -77,6 +77,7 @@ from numba_utils.profiling import (
     compile_stats,
     compile_time,
     warmup,
+    warmup_signatures,
 )
 from numba_utils.stats import (
     logsumexp,
@@ -191,6 +192,7 @@ __all__ = [
     "unique_sorted",
     "upper_bound",
     "warmup",
+    "warmup_signatures",
     "weighted_mc_mean",
     "weighted_quantile",
     "weighted_sampling",

@@ -7,6 +7,7 @@ from numba_utils.profiling._timer import (
     compile_stats,
     compile_time,
     warmup,
+    warmup_signatures,
 )
 
 __all__ = [
@@ -18,4 +19,5 @@ __all__ = [
     "compile_stats",
     "compile_time",
     "warmup",
+    "warmup_signatures",
 ]

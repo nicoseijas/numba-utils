@@ -64,3 +64,20 @@ Mean alone hides instability. `compare()` reports mean, median, variance
 and min/max per side; if variance is large relative to the mean, the
 measurement is noise-dominated — increase `n`, isolate the machine, or
 pin sizes up.
+
+## Timer overhead and drift
+
+Two details `benchmark()`/`compare()` handle that hand-rolled loops
+usually don't:
+
+- **Timer overhead.** Two `perf_counter` reads per call cost
+  ~100-200 ns — on a ns-scale kernel that inflates the measured MEAN
+  by 10-40% depending on the machine (the median resists; the mean
+  doesn't). Fast functions are therefore timed in auto-sized batches
+  (`TimingStats.inner` calls per sample, sized so one sample lasts
+  ~100 µs); functions at or above ~100 µs per call keep per-call
+  timing. Force either mode with `inner=`.
+- **Drift.** `compare()` interleaves the two sides — each round times
+  one sample of each, alternating who goes first — so thermal drift,
+  frequency scaling and cache state land on both, not on whichever
+  ran second.

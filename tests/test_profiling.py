@@ -13,7 +13,15 @@ from numba_utils.profiling import (
     compile_stats,
     compile_time,
     warmup,
+    warmup_signatures,
 )
+
+
+def _batch_sum_impl(arr):
+    total = 0.0
+    for i in range(arr.shape[0]):
+        total += arr[i]
+    return total
 
 
 class TestBenchmark:
@@ -64,6 +72,33 @@ class TestBenchmarkFunctionMode:
             benchmark(sorted, args=([1],), n=0)
         with pytest.raises(ValueError):
             benchmark(sorted, args=([1],), warmup_runs=-1)
+        with pytest.raises(ValueError):
+            benchmark(sorted, args=([1],), inner=0)
+
+    def test_fast_function_samples_are_batched(self):
+        # Backlog #1: two perf_counter reads PER CALL inflate the mean
+        # of ns-scale kernels 10-40% machine-dependent. Fast functions
+        # must be timed in auto-sized batches.
+        stats = benchmark(lambda: None, n=5, verbose=False)
+        assert stats.inner > 1
+        assert stats.runs == 5
+
+    def test_inner_1_forces_per_call_timing(self):
+        stats = benchmark(lambda: None, n=5, verbose=False, inner=1)
+        assert stats.inner == 1
+
+    def test_no_warmup_disables_autocalibration(self):
+        # with warmup_runs=0 the calibration probe would swallow the
+        # compilation the caller asked to include in the measurement
+        stats = benchmark(lambda: None, n=5, warmup_runs=0, verbose=False)
+        assert stats.inner == 1
+
+    def test_slow_function_keeps_per_call_timing(self):
+        stats = benchmark(
+            time.sleep, args=(0.001,), n=3, verbose=False
+        )
+        assert stats.inner == 1
+        assert stats.mean >= 0.0005
 
 
 class TestCompileStats:
@@ -154,6 +189,69 @@ class TestCompare:
     def test_non_callable_raises(self):
         with pytest.raises(TypeError):
             compare(42, sorted)
+
+
+class TestCompareInterleaves:
+    def test_rounds_alternate_between_callables(self):
+        # Backlog #2: measuring first COMPLETELY and then second is
+        # asymmetric under thermal drift / frequency scaling — samples
+        # must interleave, alternating who goes first each round.
+        log = []
+
+        def f():
+            log.append("f")
+
+        def s():
+            log.append("s")
+
+        compare(f, s, n=4, warmup_runs=1, inner=1)
+        measured = log[2:]  # drop the two warmup calls
+        assert measured == ["f", "s", "s", "f", "f", "s", "s", "f"]
+
+    def test_autocalibrates_inner_per_callable(self):
+        fast = lambda: None  # noqa: E731
+        slow = lambda: time.sleep(0.0005)  # noqa: E731
+        result = compare(fast, slow, n=3)
+        assert result.first.inner > 1
+        assert result.second.inner == 1
+
+    def test_invalid_inner_raises(self):
+        with pytest.raises(ValueError):
+            compare(sorted, sorted, args=([1],), inner=0)
+
+
+class TestWarmupSignatures:
+    def test_one_call_per_signature(self):
+        fn = njit(_batch_sum_impl)
+        a32 = np.arange(4, dtype=np.float32)
+        a64 = np.arange(4, dtype=np.float64)
+        elapsed = warmup_signatures(fn, [(a32,), (a64,)])
+        assert len(elapsed) == 2
+        assert len(fn.signatures) == 2  # both dtype combos compiled
+
+    def test_non_tuple_arg_set_raises(self):
+        with pytest.raises(TypeError, match=r"\(arg,\)"):
+            warmup_signatures(sorted, [[1, 2]])
+
+    def test_non_callable_raises(self):
+        with pytest.raises(TypeError):
+            warmup_signatures(42, [()])
+
+
+class TestCompileTimeCacheLoadWarning:
+    def test_cache_load_is_flagged(self):
+        # Backlog #3 (0.3.3 left the warning untested): a fresh
+        # dispatcher over an already-cached source LOADS the binary on
+        # its first call — compile_time then measures cache-load, not
+        # compilation, and must say so. Same-process only: the compile
+        # and the load share this process (the cross-process load is
+        # the segfault gotcha in docs/numba-cache.md).
+        arr = np.arange(8, dtype=np.float64)
+        fn_writer = njit(cache=True)(_batch_sum_impl)
+        fn_writer(arr)  # compile once, populate the on-disk cache
+        fn_loader = njit(cache=True)(_batch_sum_impl)
+        with pytest.warns(RuntimeWarning, match="cached binary"):
+            compile_time(fn_loader, arr)
 
 
 class TestSpeedupDegenerateTimings:
