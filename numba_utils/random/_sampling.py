@@ -63,20 +63,23 @@ def partial_shuffle(arr, k):
 @cached_njit
 def sample_without_replacement(arr, k):
     """``k`` elements of ``arr`` sampled uniformly WITHOUT replacement,
-    as a new array. Input untouched.
+    as a new array. Input untouched. ``k = 0`` returns an empty array
+    (matching :func:`partial_shuffle`, which accepts it too).
 
-    Copies once, then partial Fisher–Yates (``k`` swaps). Compared to
-    :func:`reservoir_sampling` (one pass over all n, n random draws),
-    this wins when ``k << n`` and the array is materialized — the
-    common "deal k cards from a deck" case. In a hot loop, skip the
-    per-call copy: keep a scratch array and use
+    Copies the pool once, partial Fisher–Yates (``k`` swaps), then
+    copies the ``k`` winners out (so the size-k result doesn't pin the
+    size-n scratch buffer alive) — O(n + k) copied elements total.
+    Compared to :func:`reservoir_sampling` (one pass over all n, n
+    random draws), this wins when ``k << n`` and the array is
+    materialized — the common "deal k cards from a deck" case. In a
+    hot loop, skip the per-call copies: keep a scratch array and use
     :func:`partial_shuffle` directly.
 
-    Complexity: O(n) copy + O(k) swaps. Memory: O(n).
+    Complexity: O(n + k) copies + O(k) swaps. Memory: O(n).
     """
     n = arr.shape[0]
-    if k < 1 or k > n:
-        raise ValueError("sample_without_replacement: k must be in [1, len(arr)]")
+    if k < 0 or k > n:
+        raise ValueError("sample_without_replacement: k must be in [0, len(arr)]")
     tmp = arr.copy()
     partial_shuffle(tmp, k)
     return tmp[:k].copy()
@@ -117,16 +120,19 @@ def philox_sample_without_replacement(arr, k, key, counter):
     """Counter-based :func:`sample_without_replacement`: ``k`` elements
     without replacement from the stateless Philox stream ``key``.
     Input untouched; consumes counters ``counter .. counter + k - 1``.
+    ``k = 0`` returns an empty array and consumes no counters.
 
-    In a hot loop, skip the per-call copy: keep a scratch array and use
+    Copies the pool once plus the ``k`` winners (see
+    :func:`sample_without_replacement`). In a hot loop, skip the
+    per-call copies: keep a scratch array and use
     :func:`philox_partial_shuffle` directly.
 
-    Complexity: O(n) copy + O(k) swaps. Memory: O(n).
+    Complexity: O(n + k) copies + O(k) swaps. Memory: O(n).
     """
     n = arr.shape[0]
-    if k < 1 or k > n:
+    if k < 0 or k > n:
         raise ValueError(
-            "philox_sample_without_replacement: k must be in [1, len(arr)]"
+            "philox_sample_without_replacement: k must be in [0, len(arr)]"
         )
     tmp = arr.copy()
     philox_partial_shuffle(tmp, k, key, counter)

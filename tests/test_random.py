@@ -314,9 +314,20 @@ class TestSampleWithoutReplacement:
     def test_k_out_of_range_raises(self):
         arr = np.arange(3, dtype=np.int64)
         with pytest.raises(ValueError):
-            sample_without_replacement(arr, 0)
+            sample_without_replacement(arr, -1)
         with pytest.raises(ValueError):
             sample_without_replacement(arr, 4)
+
+    def test_k_zero_returns_empty(self):
+        # backlog #10: partial_shuffle accepted k=0 but the sampler
+        # rejected it — an API asymmetry with no rationale. Both accept
+        # it now (an empty sample is a valid sample).
+        arr = np.arange(3, dtype=np.int64)
+        out = sample_without_replacement(arr, 0)
+        assert out.shape == (0,)
+        np.testing.assert_array_equal(arr, np.arange(3))
+        out = philox_sample_without_replacement(arr, 0, 7, 0)
+        assert out.shape == (0,)
 
 
 class TestPhiloxSampling:
@@ -357,7 +368,7 @@ class TestPhiloxSampling:
             philox_partial_shuffle(np.arange(3, dtype=np.int64), 4, 0, 0)
         with pytest.raises(ValueError):
             philox_sample_without_replacement(
-                np.arange(3, dtype=np.int64), 0, 0, 0
+                np.arange(3, dtype=np.int64), -1, 0, 0
             )
 
     def test_callable_from_jitted_code(self):

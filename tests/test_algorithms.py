@@ -128,6 +128,16 @@ class TestArgmax2:
         with pytest.raises(ValueError):
             argmax2(np.empty(0))
 
+    def test_nan_divergence_from_numpy_is_as_documented(self):
+        # backlog #8: results with NaN are undefined AND diverge from
+        # np.argmax (which propagates NaN as the max). The docstring
+        # documents the divergence; these pin the documented examples
+        # so the docstring cannot rot.
+        idx, value = argmax2(np.array([1.0, np.nan, 3.0]))
+        assert (idx, value) == (2, 3.0)  # np.argmax says 1, the NaN
+        idx, value = argmax2(np.array([np.nan, 1.0, 3.0]))
+        assert idx == 0 and np.isnan(value)  # NaN at 0 is undisplaceable
+
 
 class TestInsertionSort:
     def test_sorts_in_place(self):

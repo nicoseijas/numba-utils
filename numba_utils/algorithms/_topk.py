@@ -46,13 +46,16 @@ def topk(arr, k):
     """The k LARGEST values of ``arr``, sorted descending. Input untouched.
 
     Small k (``k * 16 <= n``): single read-only pass with a size-k
-    min-heap, O(n) time and O(k) extra memory. Large k: quickselect via
-    :func:`nth_element` on a copy, then sort only the k winners. Either
-    way the full sort never happens. For the k smallest, use
-    :func:`fast_argpartition`. Results are undefined if ``arr``
-    contains NaN.
+    min-heap — every element that beats the heap root costs an
+    O(log k) sift, so the pass is O(n) on random input (few beats) but
+    O(n log k) worst case (ascending input beats the root every time).
+    Large k: quickselect via :func:`nth_element` on a copy, then sort
+    only the k winners. Either way the full sort never happens. For
+    the k smallest, use :func:`fast_argpartition`. Results are
+    undefined if ``arr`` contains NaN.
 
-    Complexity: average O(n + k log k). Memory: O(k) small k, O(n) large k.
+    Complexity: O(n + k log k) average on random input; O(n log k)
+    worst case. Memory: O(k) small k, O(n) large k.
     """
     n = arr.shape[0]
     if k < 1 or k > n:
@@ -73,6 +76,11 @@ def argmax2(arr):
 
     Saves the second scan of the ``arr[np.argmax(arr)]`` idiom. First
     occurrence wins on ties. Raises ``ValueError`` on empty input.
+    Results are undefined if ``arr`` contains NaN — and they DIVERGE
+    from NumPy, which propagates NaN as the max (``np.argmax([1, nan,
+    3])`` is 1, the NaN; this returns 2, the largest real value; a NaN
+    at position 0 is returned as the max because no comparison can
+    displace it).
 
     Complexity: O(n). Memory: O(1).
     """

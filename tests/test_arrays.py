@@ -99,6 +99,16 @@ class TestNormalize:
         with pytest.raises(ValueError):
             normalize(np.empty(0))
 
+    def test_nan_anywhere_poisons_everything(self):
+        # backlog #5: the min/max scan skipped NaN unless it sat at
+        # position 0, so the SAME NaN contaminated everything or only
+        # its own cell depending on position. Now: any NaN -> all NaN,
+        # matching (arr - arr.min()) / (arr.max() - arr.min()).
+        for pos in (0, 1, 3):
+            arr = np.array([1.0, 2.0, 3.0, 4.0])
+            arr[pos] = np.nan
+            assert np.all(np.isnan(normalize(arr)))
+
 
 class TestCumulativeSum:
     def test_matches_numpy(self):

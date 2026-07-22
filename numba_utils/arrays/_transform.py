@@ -13,7 +13,11 @@ def fast_clip(arr, lo, hi, out=None):
 
     Returns a new array, or writes into ``out`` (same length and dtype as
     ``arr``) and returns it. Pass ``lo``/``hi`` matching ``arr``'s dtype;
-    mixed int/float promotes the comparison, not the output.
+    mixed int/float promotes the comparison, not the output — which
+    DIVERGES from ``np.clip``: an int array with float bounds keeps the
+    int dtype here, so a clamped-to-bound element is truncated
+    (``fast_clip([0,1,2,3,4], 0.5, 3.5)`` gives ``[0 1 2 3 3]``;
+    ``np.clip`` promotes to float64 and gives ``[0.5 1. 2. 3. 3.5]``).
 
     Complexity: O(n). Memory: O(n), O(1) with ``out=``.
     """
@@ -40,6 +44,12 @@ def normalize(arr, out=None):
     A constant array maps to all zeros. ``out`` must be a float array of
     the same length. Raises ``ValueError`` on empty input.
 
+    Any NaN in the input makes the WHOLE output NaN — min and max are
+    undefined, exactly as ``(arr - arr.min()) / (arr.max() - arr.min())``
+    behaves in NumPy. (Earlier releases let the result depend on WHERE
+    the NaN sat: at position 0 it contaminated everything, elsewhere
+    only its own cell.)
+
     Complexity: O(n), two passes. Memory: O(n), O(1) with ``out=``.
     """
     n = arr.shape[0]
@@ -51,8 +61,14 @@ def normalize(arr, out=None):
         raise ValueError("normalize: out has wrong length")
     mn = arr[0]
     mx = arr[0]
-    for i in range(1, n):
+    for i in range(n):
         x = arr[i]
+        # NaN poisons min/max wherever it sits; without this check the
+        # comparisons below silently SKIP a NaN that isn't at index 0.
+        if x != x:
+            for j in range(n):
+                out[j] = np.nan
+            return out
         if x < mn:
             mn = x
         elif x > mx:
@@ -71,8 +87,12 @@ def normalize(arr, out=None):
 def cumulative_sum(arr, out=None):
     """Inclusive prefix sum of 1-D ``arr``, preserving its dtype.
 
-    Accumulates in ``arr``'s dtype (like ``np.cumsum``): integer inputs
-    can overflow, float32 inputs accumulate float32 error.
+    Accumulates in ``arr``'s dtype — UNLIKE ``np.cumsum``, which
+    promotes lower-precision integers to the platform int:
+    ``np.cumsum`` of an int8 array of hundreds sums in int64;
+    this keeps int8 and WRAPS (``[100, -56, 44]`` where NumPy gives
+    ``[100, 200, 300]``). Cast up first if the sums can exceed the
+    dtype. Float32 inputs likewise accumulate float32 error.
 
     Complexity: O(n). Memory: O(n), O(1) with ``out=``.
     """
