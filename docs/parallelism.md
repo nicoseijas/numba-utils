@@ -64,6 +64,17 @@ is valid. Two consequences:
   indexed stores instead. And never raise `sys.setrecursionlimit` to
   silence a Numba `RecursionError`: Numba doesn't honor it, and deep
   native recursion is a crash, not a catchable exception.
+- **Exceptions raised inside `prange` don't survive as themselves.**
+  The same overflow that raises `ValueError('Stack: full')` in serial
+  code surfaces from a parallel region as `SystemError:
+  CPUDispatcher(...) returned a result with an exception set` — a
+  Numba limitation, and it applies to every raise in this library's
+  collections (`Stack`/`FixedQueue` full, `SparseSet` capacity,
+  `BitSet` bounds) exactly where you'd use them per-thread. Validate
+  capacities BEFORE the parallel region (or size containers so the
+  raise is unreachable), and treat any `SystemError` from a parallel
+  kernel as a masked exception from inside the loop, not as a Numba
+  bug to report.
 
 ## Verify numerics
 

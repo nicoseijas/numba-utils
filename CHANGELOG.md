@@ -7,6 +7,87 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+The low-priority backlog, retired after sitting at 12/12 through four
+releases. Grouped as the audit grouped it: profiling accuracy, contract
+honesty in `arrays`/`algorithms`/`random`, and one documented Numba
+limitation.
+
+### Fixed
+
+- **profiling** — `benchmark()` timed call-by-call: two
+  `perf_counter` reads per call (~100-200 ns) inflated the measured
+  MEAN of ns-scale kernels by 10-40% machine-dependent (the median was
+  robust; the mean was not). Fast functions are now timed in
+  auto-sized batches (`TimingStats.inner` calls per sample, sized so a
+  sample lasts ~100 µs; functions at or above that per call keep
+  `inner=1`). `inner=` forces either mode; auto-calibration is off at
+  `warmup_runs=0`, where the probe would swallow the compilation the
+  caller asked to include. (#1)
+- **profiling** — `compare()` measured `first` completely, then
+  `second` — asymmetric under thermal drift, frequency scaling and
+  cache state. Rounds now interleave, alternating which side goes
+  first, and each side gets its own batch calibration so timer
+  overhead cannot skew the faster one. (#2)
+- **profiling** — the `compile_time` cache-load `RuntimeWarning`
+  (added in 0.3.3, but untested) is now pinned by a same-process test:
+  a fresh dispatcher over an already-cached source loads the binary on
+  its first call, and the warning is the designed mitigation — the
+  returned number itself cannot distinguish a compile from a cache
+  load. (#3)
+- **arrays** — `normalize` NaN handling was position-dependent: a NaN
+  at index 0 contaminated the whole output, a NaN elsewhere only its
+  own cell (the min/max scan's comparisons silently skip NaN unless it
+  seeds the accumulator). Any NaN now makes the whole output NaN,
+  matching `(arr - arr.min()) / (arr.max() - arr.min())` in NumPy.
+  Behavior change, in the bugfix direction. (#5)
+- **random** — `sample_without_replacement` and
+  `philox_sample_without_replacement` accept `k = 0` (empty sample),
+  removing the unexplained asymmetry with `partial_shuffle`, which
+  always accepted it. Relaxation, like the 0.4.0 `counting_sort`
+  precedent. (#10)
+
+### Added
+
+- **profiling** — `warmup_signatures(fn, arg_sets)`: one warmup call
+  per argument tuple. Numba compiles per SIGNATURE, so one `warmup()`
+  covers exactly one dtype/rank combination — passing a list was a
+  `TypingError`, not a multi-warmup. `warmup()`'s docstring now says
+  so, and `diagnostics.check`'s recommendation names the
+  per-combination requirement. (#4)
+
+### Docs
+
+- **arrays** — `cumulative_sum` claimed "(like `np.cumsum`)" while
+  diverging from it: NumPy promotes lower-precision integers to the
+  platform int, this preserves dtype and WRAPS (int8 cumsum of
+  hundreds: `[100, -56, 44]` vs NumPy's `[100, 200, 300]`). The
+  docstring now states the divergence instead of denying it. (#6)
+- **arrays** — `fast_clip` documents its divergence from `np.clip` on
+  int arrays with float bounds: output keeps the int dtype, so a
+  clamped-to-bound element truncates (`lo=0.5` clamps to `0`). (#7)
+- **algorithms** — `argmax2` carries the same "undefined if NaN" note
+  as its siblings, plus the specific divergence: NumPy propagates NaN
+  as the max, `argmax2` returns the largest real value (except a NaN
+  at position 0, which no comparison can displace). The documented
+  examples are pinned by tests. (#8)
+- **algorithms** — `topk`'s complexity claims were optimistic: the
+  heap path is O(n) on random input but O(n log k) worst case
+  (ascending input pays a sift per element). Both docstring lines now
+  state average AND worst case. (#9)
+- docs/parallelism.md — exceptions raised inside `prange` do not
+  survive as themselves: a container's `ValueError('Stack: full')`
+  surfaces as `SystemError: CPUDispatcher(...) returned a result with
+  an exception set`. Numba limitation; validate capacities before the
+  parallel region, and read any `SystemError` from a parallel kernel
+  as a masked in-loop exception. (#11)
+- docs/benchmarking.md — new "Timer overhead and drift" section
+  documenting what `benchmark()`/`compare()` now correct for.
+- Declined: removing the three typed `except: pass` blocks in
+  `diagnostics.inspect()` (#12) — the module docstring declares
+  graceful degradation as the design (diagnostics must never take the
+  program down), and each handler catches concrete exception types
+  around a specific private-API access, not blanket `Exception`.
+
 ## [0.4.1] - 2026-07-21
 
 Resolution of the 0.4.0 audit verdict: two certification-primitive
