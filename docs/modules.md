@@ -47,9 +47,9 @@ reproducible by construction.
 
 ### `numba_utils.profiling`
 
-- `benchmark` — function mode excludes JIT compilation by default; block mode via `with benchmark():`
-- `compare` — two callables, same inputs, warmed up: mean/median/variance + speedup
-- `warmup`, `compile_time`, `compile_stats`
+- `benchmark` — function mode excludes JIT compilation by default and times fast functions in auto-sized batches (`TimingStats.inner`), so per-call timer overhead never inflates the mean; block mode via `with benchmark():`
+- `compare` — two callables, same inputs, warmed up, samples INTERLEAVED with alternating order (drift lands on both sides): mean/median/variance + speedup
+- `warmup` (one call warms ONE signature), `warmup_signatures` (one call per dtype combination), `compile_time`, `compile_stats`
 
 ### `numba_utils.diagnostics`
 
@@ -98,7 +98,10 @@ takes `out=`), `weighted_quantile` (inverted CDF — exact match
 with `np.quantile(..., weights=..., method="inverted_cdf")`; rejects
 NaN values and NaN/negative weights up front), and `weighted_mc_mean`
 (uniform-subsample-then-weight, Philox-driven — the correct pattern
-for the reach² bug that `assert_no_reweight_bias` guards against).
+for the reach² bug that `assert_no_reweight_bias` guards against;
+correct-pattern ≠ accurate at any `n_sub`: the ratio estimator's bias
+grows with weight concentration, numbers in the docstring — certify at
+your `n_sub` and weight profile).
 
 ### `numba_utils.random`
 
@@ -124,9 +127,18 @@ that drive the Fisher–Yates primitives from a Philox stream.
 - `random_arrays` — generated cases plus the edges that break kernels
 - `assert_close`, `deterministic_rng` (pins all three RNG worlds)
 - Stochastic asserts: `assert_reproducible` (same seed → bit-identical) and `assert_converges` (different seeds → within N standard errors of the truth; the statistic is Student-t, real false-positive rates documented per `n_runs`). Both take `pass_seed=True` for counter-based (Philox) kernels, whose stream comes from an argument rather than global state. `assert_within_se` is the one-sample-set primitive underneath.
-- Certification: `mutation_screams` (deliberately break the kernel, assert the check FAILS — a check that cannot fail certifies nothing) and `assert_no_reweight_bias` (screams on the reach² double-weighting bug)
+- Certification: `mutation_screams` (deliberately break the kernel, assert the check FAILS — a check that cannot fail certifies nothing; in-place kernels must return their buffer, and identical NaN/inf in both runs does not count as a scream) and `assert_no_reweight_bias` (screams on the reach² double-weighting bug; a pass requires the run to be CONCLUSIVE — an estimator too noisy to distinguish correct from double-weighted fails as inconclusive instead of certifying nothing)
 
 Strategy: [testing.md](testing.md).
+
+### `numba_utils.cache_locator`
+
+- `ContentHashLocator` — stamps Numba's on-disk cache by SHA-256 of the
+  source bytes instead of `(mtime, size)`, closing the stale-binary
+  window that mtime-preserving deployments (`docker COPY`, `tar -x`,
+  `rsync -a`, `cp -p`) open. Opt-in via Numba's
+  `NUMBA_CACHE_LOCATOR_CLASSES` hook, set before the first import; not
+  imported by the package itself. Full story: [numba-cache.md](numba-cache.md).
 
 ### Configuration
 

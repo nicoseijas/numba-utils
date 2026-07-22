@@ -200,6 +200,13 @@ what comes next is user-driven — open an issue.
       certification primitives (`mutation_screams`, `assert_within_se`,
       the reach² guard), and documented parallel patterns (Hogwild,
       factorized aggregation)
+- [x] 0.4.1–0.4.2 — the 0.4.0 audit verdict and the low-priority
+      backlog, retired: certification primitives that could certify
+      silently-dead checks fixed, the flagship's key-domain envelope
+      made true (combinadic subset encoding: a 52-card deck fits at
+      every K ≤ 12), `ContentHashLocator` for stale-cache-proof
+      deploys, and profiling that no longer measures its own timer
+      (batched sampling, interleaved comparison)
 
 ## Development
 

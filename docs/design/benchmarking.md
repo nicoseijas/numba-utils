@@ -46,3 +46,24 @@ stated in its header.
 `FunctionReport` are immutable. Measurement results are facts; letting
 code mutate a stats object after the fact is a category error, and
 frozen dataclasses make it a `AttributeError` instead of a silent one.
+
+## Why samples are batched and `compare()` interleaves
+
+Two `perf_counter` reads per call cost ~100-200 ns. For ms-scale
+workloads that is noise; for ns-scale kernels it inflated the measured
+MEAN by 10-40% machine-dependent — in the audit's repro the "overhead"
+exceeded the kernel (164.5 vs 72.7 ns/call). The median resists the
+inflation; the mean does not, and the mean is what feeds `speedup`.
+So fast functions are timed in auto-sized batches (`TimingStats.inner`
+calls per sample, ~100 µs per sample) with the timer outside the
+batch. The threshold matters in the other direction too: at or above
+~100 µs per call, batching would only hide per-call variance that
+per-call timing reports for free, so `inner` stays 1 there.
+
+`compare()` used to measure `first` completely, then `second` —
+whichever ran second absorbed the accumulated thermal drift, frequency
+scaling and cache-state changes. Rounds now interleave, alternating
+which side goes first each round, so slow drift lands symmetrically on
+both. Auto-calibration is per side: with a 100x speed gap, one shared
+batch size would leave the fast side exposed to exactly the overhead
+the batching exists to remove.

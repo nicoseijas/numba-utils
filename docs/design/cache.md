@@ -40,3 +40,24 @@ definition — caching them buys nothing and writes dev artifacts into
 the same `__pycache__` namespace production builds read from. Keeping
 dev compilation fully in-memory is free and removes a class of "which
 binary am I actually running?" questions.
+
+## Why the content-hash locator is opt-in, not the default
+
+Numba stamps cached binaries with `(mtime, size)`. Deployment channels
+that preserve mtime (`docker COPY`, `tar -x`, `rsync -a`, `cp -p`)
+plus a size collision make a new release silently run the previous
+version's binary — reproduced, not theorized. `ContentHashLocator`
+closes this by stamping with a SHA-256 of the source bytes.
+
+It is opt-in (`NUMBA_CACHE_LOCATOR_CLASSES`, before the first import)
+for two reasons. First, the hook is process-global: registering it
+REPLACES Numba's locator chain for every cached function in the
+process, including code that is not numba-utils' — a library must not
+make that decision for its host application at import time. Second,
+the failure it prevents lives in a deployment channel, not in code:
+the environments that need it (image-based deploys) are exactly the
+ones that can set one environment variable in the image, and everyone
+else would pay the per-function hash for a window they are never in.
+The module deliberately imports nothing from `numba_utils`, because
+Numba loads it lazily mid-decoration — which can happen mid-import of
+the package itself.
