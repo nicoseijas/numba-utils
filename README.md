@@ -6,6 +6,7 @@
 [![PyPI](https://img.shields.io/pypi/v/numba-utils)](https://pypi.org/project/numba-utils/)
 [![CI](https://github.com/nicoseijas/numba-utils/actions/workflows/ci.yml/badge.svg)](https://github.com/nicoseijas/numba-utils/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/pypi/pyversions/numba-utils)](https://pypi.org/project/numba-utils/)
+[![Downloads](https://static.pepy.tech/badge/numba-utils)](https://pepy.tech/projects/numba-utils)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](https://github.com/nicoseijas/numba-utils/blob/main/LICENSE)
 
 ✓ Zero dependencies beyond NumPy + Numba &nbsp;·&nbsp; ✓ Callable inside
