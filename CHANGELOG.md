@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **testing** — `random_arrays` no longer smuggles extreme values in
+  through a wrapping cast. Integer cases were drawn from
+  `[-1000, 1000)` and cast, so the negative half wrapped for unsigned
+  and narrow dtypes (`np.uint32(-1000)` arrived as 4294966296) — useful
+  as stress input, but implicit, in the one helper whose job is to be
+  predictable. Random cases are now generated INSIDE the dtype's range,
+  and the extremes get their own deliberate edge case (the sixth):
+  `iinfo.min`/`iinfo.max` for integers, signed zeros and the smallest
+  normal for floats. The float extremes are finite on purpose —
+  seeding a generic generator with `inf`/`NaN` breaks reference
+  implementations more often than it catches kernel bugs. Two visible
+  consequences: `include_edges=True` yields six cases instead of five,
+  and int64/int32 streams are byte-identical to before (their range
+  already fit). (GitHub issue #6)
+
+### Fixed
+
+- **testing/docs** — the `out=` dtype contract is now pinned instead of
+  accidental. A wrong-dtype buffer fails loudly with a `TypingError`
+  because the `out is None` branch allocates a specific dtype and the
+  argument must unify with it — true across the whole family, but a
+  refactor that retyped that branch would have silently turned it into
+  truncation, and only `philox_uniforms` had it under test. Added
+  tests/test_out_contract.py (wrong dtype and non-1-D rejected;
+  matching buffers still written in place, so an implementation that
+  rejected everything can't pass) covering `fast_clip`, `normalize`,
+  `cumulative_sum`, `rolling_sum`, `rolling_mean`,
+  `parallel_prefix_sum`, `softmax` and `philox_uniforms`, and each
+  docstring now states the failure mode. Verified before documenting,
+  this time: `softmax` and `rolling_mean` had never been checked, and
+  both raise. (GitHub issue #8)
+
 ## [0.4.2] - 2026-07-21
 
 The low-priority backlog, retired after sitting at 12/12 through four

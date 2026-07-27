@@ -45,10 +45,12 @@ def softmax(arr, out=None):
     """Softmax of 1-D ``arr`` as float64: ``exp(arr) / sum(exp(arr))``.
 
     Max-shifted for stability, so large inputs don't overflow ``exp``.
-    Returns a new array, or writes into ``out`` (float64, same length)
-    and returns it. Raises ``ValueError`` on empty input. Non-finite
-    elements make the result undefined (NaN), as in the mathematical
-    expression itself.
+    Returns a new array, or writes into ``out`` (1-D float64, same
+    length) and returns it — any other dtype is a ``TypingError`` at
+    compile time, never a silent truncation (pinned by
+    tests/test_out_contract.py). Raises ``ValueError`` on empty input.
+    Non-finite elements make the result undefined (NaN), as in the
+    mathematical expression itself.
 
     Complexity: O(n), two passes. Memory: O(n), O(1) with ``out=``.
     """

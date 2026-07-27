@@ -31,7 +31,7 @@ reference is a **stronger** guarantee than Python line coverage.
 | Unit tests (200+, all modules) | ✅ |
 | Independent reference validation (NumPy, heapq, set) | ✅ |
 | Randomized inputs (fixed seeds) | ✅ |
-| Edge cases (empty, single, constant, sorted, duplicates) | ✅ |
+| Edge cases (empty, single, constant, sorted, duplicates, dtype extremes) | ✅ |
 | Error paths (every documented `ValueError`/`IndexError`) | ✅ |
 | Callable-from-`@njit` verified per module | ✅ |
 | Bit-exactness where promised (e.g. `parallel_histogram`) | ✅ |
@@ -65,7 +65,10 @@ assert_equivalent(
 `assert_equivalent` copies every array per call (mutating kernels can't
 contaminate the comparison), names the failing case, and fails on an
 empty generator instead of passing vacuously. `random_arrays` includes
-the edge cases that actually break kernels. `deterministic_rng` pins
+the edge cases that actually break kernels — including the dtype's own
+`min`/`max` sentinels, generated deliberately rather than smuggled in
+by a wrapping cast, with the random cases drawn inside the dtype's
+range. `deterministic_rng` pins
 NumPy's legacy state, a NumPy `Generator`, and Numba's separate
 nopython RNG in one call. During development, `@boundscheck` with
 `NUMBA_UTILS_DEV=1` turns silent corruption into an `IndexError`.

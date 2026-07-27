@@ -23,7 +23,10 @@ def parallel_prefix_sum(arr, out=None):
     Unlike :func:`numba_utils.cumulative_sum` (dtype-preserving, serial),
     output is always float64 and parallel reassociation can differ from
     the serial scan in the last bits. Serial fallback below the size
-    threshold.
+    threshold. ``out`` must therefore be 1-D float64 too — an int64 or
+    float32 buffer cannot unify with the internal allocation and fails
+    LOUDLY with a ``TypingError`` at compile time, never a silent
+    truncation (pinned by tests/test_out_contract.py).
 
     Complexity: O(n). Memory: O(n) output + O(threads).
     """

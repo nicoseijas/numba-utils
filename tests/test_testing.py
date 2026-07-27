@@ -36,7 +36,7 @@ class TestAssertEquivalent:
             cumulative_sum,
             random_arrays(n_cases=10, size=500, seed=1),
         )
-        assert checked == 15  # 10 random + 5 edge cases
+        assert checked == 16  # 10 random + 6 edge cases
 
     def test_protects_against_mutation(self):
         # insertion_sort mutates its input; np.sort does not. Per-call
@@ -91,15 +91,54 @@ class TestRandomArrays:
 
     def test_edge_cases_present(self):
         cases = list(random_arrays(n_cases=0, size=10))
-        assert len(cases) == 5
+        assert len(cases) == 6
         assert (cases[0] == cases[0][0]).all()  # constant
         assert (np.diff(cases[1]) >= 0).all()  # ascending
         assert (np.diff(cases[2]) <= 0).all()  # descending
         assert cases[4].shape == (1,)  # single element
+        assert cases[5].shape == (10,)  # extremes
 
     def test_dtype_respected(self):
         for arr in random_arrays(n_cases=2, size=8, dtype=np.int32):
             assert arr.dtype == np.int32
+
+    @pytest.mark.parametrize(
+        "dtype", [np.uint8, np.uint32, np.uint64, np.int8, np.int16, np.int32, np.int64]
+    )
+    def test_integers_stay_inside_the_dtype_range(self, dtype):
+        # the random cases must not depend on a wrapping cast:
+        # np.uint32(-1000) used to arrive as 4294966296
+        info = np.iinfo(dtype)
+        lo = max(-1000, info.min)
+        hi = min(lo + 2000, info.max)
+        for arr in random_arrays(n_cases=3, size=64, dtype=dtype, include_edges=False):
+            assert arr.dtype == dtype
+            assert int(arr.min()) >= lo
+            assert int(arr.max()) <= hi
+
+    @pytest.mark.parametrize("dtype", [np.uint8, np.int8, np.int64])
+    def test_extremes_case_carries_the_dtype_sentinels(self, dtype):
+        info = np.iinfo(dtype)
+        extremes = list(random_arrays(n_cases=0, size=8, dtype=dtype))[5]
+        assert extremes.dtype == dtype
+        assert info.min in extremes
+        assert info.max in extremes
+
+    def test_float_extremes_stay_finite(self):
+        extremes = list(random_arrays(n_cases=0, size=8))[5]
+        assert np.isfinite(extremes).all()
+        assert (extremes == 0.0).any()  # signed zeros
+        assert extremes.min() < 0.0
+
+    def test_int64_stream_unchanged(self):
+        # the range fix is a no-op where [-1000, 1000) already fit the
+        # dtype: int64/int32 users' cases must not move
+        rng = np.random.default_rng(7)
+        expected = rng.integers(-1000, 1000, 16).astype(np.int64)
+        cases = random_arrays(
+            n_cases=1, size=16, dtype=np.int64, seed=7, include_edges=False
+        )
+        np.testing.assert_array_equal(next(cases), expected)
 
     def test_invalid_params_raise(self):
         with pytest.raises(ValueError):

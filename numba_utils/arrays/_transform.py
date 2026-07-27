@@ -19,6 +19,11 @@ def fast_clip(arr, lo, hi, out=None):
     (``fast_clip([0,1,2,3,4], 0.5, 3.5)`` gives ``[0 1 2 3 3]``;
     ``np.clip`` promotes to float64 and gives ``[0.5 1. 2. 3. 3.5]``).
 
+    A wrong-dtype or non-1-D ``out`` fails LOUDLY: it cannot unify with
+    the internal ``empty_like(arr)`` allocation, so Numba raises
+    ``TypingError`` at compile time rather than truncating silently
+    (pinned by tests/test_out_contract.py).
+
     Complexity: O(n). Memory: O(n), O(1) with ``out=``.
     """
     if lo > hi:
@@ -41,8 +46,11 @@ def fast_clip(arr, lo, hi, out=None):
 def normalize(arr, out=None):
     """Min-max scale 1-D ``arr`` into ``[0, 1]`` as float64.
 
-    A constant array maps to all zeros. ``out`` must be a float array of
-    the same length. Raises ``ValueError`` on empty input.
+    A constant array maps to all zeros. ``out`` must be float64 and 1-D
+    of the same length; anything else fails LOUDLY with a ``TypingError``
+    at compile time (it cannot unify with the internal float64
+    allocation), never a silent truncation — pinned by
+    tests/test_out_contract.py. Raises ``ValueError`` on empty input.
 
     Any NaN in the input makes the WHOLE output NaN — min and max are
     undefined, exactly as ``(arr - arr.min()) / (arr.max() - arr.min())``
@@ -93,6 +101,11 @@ def cumulative_sum(arr, out=None):
     this keeps int8 and WRAPS (``[100, -56, 44]`` where NumPy gives
     ``[100, 200, 300]``). Cast up first if the sums can exceed the
     dtype. Float32 inputs likewise accumulate float32 error.
+
+    Because the dtype is preserved, ``out`` must match ``arr``'s dtype
+    exactly (a float64 buffer for an int64 input is a ``TypingError``,
+    not a promotion) and be 1-D; the failure is loud at compile time,
+    never a silent truncation — pinned by tests/test_out_contract.py.
 
     Complexity: O(n). Memory: O(n), O(1) with ``out=``.
     """

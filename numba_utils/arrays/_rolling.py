@@ -15,6 +15,11 @@ def rolling_sum(arr, window, out=None):
     step is O(1) but long float streams accumulate rounding drift — fine
     for windowed features, not for exact accounting.
 
+    ``out`` must be 1-D float64 of length ``n - window + 1``; a
+    wrong-dtype buffer cannot unify with the internal float64 allocation
+    and fails LOUDLY with a ``TypingError`` at compile time, never a
+    silent truncation (pinned by tests/test_out_contract.py).
+
     Complexity: O(n). Memory: O(n - window + 1), O(1) with ``out=``.
     """
     n = arr.shape[0]
@@ -39,7 +44,8 @@ def rolling_sum(arr, window, out=None):
 def rolling_mean(arr, window, out=None):
     """Sliding-window mean of 1-D ``arr``; output length ``n - window + 1``.
 
-    Same accumulation caveats as :func:`rolling_sum`.
+    Same accumulation caveats as :func:`rolling_sum`, and the same
+    ``out`` contract: 1-D float64, enforced loudly at compile time.
 
     Complexity: O(n). Memory: O(n - window + 1), O(1) with ``out=``.
     """
