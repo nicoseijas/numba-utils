@@ -53,6 +53,8 @@ more than the difference above.
 | parallel_topk k=100 (20,000,000 f64) vs serial topk | 11.58 ms | 2.50 ms | 4.63x |
 | chunked_reduce MC (20,000,000 philox draws, 256 chunks) vs its serial driver | 145.51 ms | 12.41 ms | 11.73x |
 
+`parallel_topk`'s private heap rows are padded to 64-byte cache lines. Against the same kernel with unpadded rows (float64, n=4,194,304, 24 threads), padding is worth 10-17% on ascending input — where every element beats the heap root, so every iteration writes `heap[0]`, the slot that would share a line with the previous thread's tail — and 60-85% at 2-12 threads. On random input the two are indistinguishable, repeated runs straddling zero: writes are rare, so there is little sharing to avoid. Nobody pays for the padding, and the adversarial cliff is gone.
+
 Parallel float reductions reorder operations; results can differ from serial in the last bits (parallel_histogram is bit-exact, and chunked_reduce is bit-exact between its own serial and parallel drivers at fixed n_chunks). Gains depend on core count and memory bandwidth. The philox_uniforms baseline is NumPy's own counter-based workflow (a fresh Philox stream per key/counter, as a per-chunk MC worker builds it).
 
 ## Graph

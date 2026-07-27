@@ -167,6 +167,29 @@ class TestParallelTopk:
         expected = np.sort(arr)[-5:][::-1]
         np.testing.assert_array_equal(parallel_topk(arr, 5), expected)
 
+    @pytest.mark.parametrize(
+        "dtype", [np.float64, np.float32, np.int64, np.int32, np.int8]
+    )
+    def test_narrow_dtypes_survive_the_row_padding(self, dtype):
+        # the private rows are padded from arr.itemsize, so every dtype
+        # takes a different padded width (float32: 16 elements per line,
+        # int8: 64). k=5 with k not dividing the line is the case where
+        # a wrong padded width would overlap two threads' rows.
+        info = np.iinfo(dtype) if np.issubdtype(dtype, np.integer) else None
+        hi = 100 if info is None else min(100, info.max)
+        arr = RNG.integers(0, hi, LARGE).astype(dtype)
+        expected = np.sort(arr)[-5:][::-1]
+        np.testing.assert_array_equal(parallel_topk(arr, 5), expected)
+
+    def test_ascending_input_writes_every_element(self):
+        # the adversarial case for the private rows: x > heap[0] holds
+        # on every element, so every iteration writes heap[0]. It is a
+        # correctness case too — the sift path runs n/threads times per
+        # thread instead of the handful random input triggers.
+        arr = np.linspace(0.0, 1.0, LARGE)
+        expected = np.sort(arr)[-8:][::-1]
+        np.testing.assert_array_equal(parallel_topk(arr, 8), expected)
+
     def test_k_out_of_range_raises(self):
         with pytest.raises(ValueError):
             parallel_topk(np.ones(10), 0)

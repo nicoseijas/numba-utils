@@ -26,6 +26,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **parallel** — `parallel_topk` gave each thread a contiguous, UNPADDED
+  slice of one flat candidate array, so consecutive threads' heaps
+  shared cache lines. Heap writes are gated by `x > heap[0]`, which
+  makes the sharing invisible on random input — and brutal on input
+  that keeps beating the root, where every iteration writes `heap[0]`,
+  the slot sitting on the previous thread's line. Rows are now private
+  and padded to a 64-byte boundary (computed from `arr.itemsize`, not
+  a hardcoded element count: a fixed count only lands on a line for
+  8-byte dtypes and this kernel is dtype-generic). Measured against
+  the unpadded layout (float64, n=2**22, 24 threads): +10-17% on
+  ascending input, +60-85% at 2-12 threads, indistinguishable from
+  noise on random input. Two controls attribute it to the padding
+  rather than to the 1-D→2-D layout change: a 2-D-but-unpadded variant
+  performs like the flat one, and at k=8 — where a float64 row is
+  already exactly one 64-byte line — the difference collapses to
+  +0.05%. Output is bit-identical; this is a layout change only.
+  (GitHub issue #7)
 - **testing/docs** — the `out=` dtype contract is now pinned instead of
   accidental. A wrong-dtype buffer fails loudly with a `TypingError`
   because the `out is None` branch allocates a specific dtype and the
