@@ -77,6 +77,7 @@ nav:
   - Testing: testing.md
   - Articles:
       - Why most Numba benchmarks are wrong: articles/why-most-numba-benchmarks-are-wrong.md
+      - Why parallel=True made my code slower: articles/why-parallel-true-made-my-code-slower.md
       - Building a Priority Queue inside @njit: articles/priority-queue-inside-njit.md
       - "Weighted sampling in O(1): the alias method": articles/weighted-sampling-alias-method.md
       - Your coverage tool can't see your fastest code: articles/coverage-cant-see-your-kernels.md
