@@ -1,4 +1,8 @@
-# numba-utils
+<p align="center">
+  <img src="https://raw.githubusercontent.com/nicoseijas/numba-utils/main/docs/assets/banner.svg"
+       alt="numba-utils — battle-tested building blocks for production Numba workloads"
+       width="820">
+</p>
 
 **Battle-tested building blocks for production
 [Numba](https://numba.pydata.org/) workloads.**

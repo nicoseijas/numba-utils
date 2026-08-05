@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="320" viewBox="0 0 1280 320" role="img" aria-label="numba-utils — battle-tested building blocks for production Numba workloads">
+  <title>numba-utils</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0b1220"/>
+      <stop offset="55%" stop-color="#0e1a2b"/>
+      <stop offset="100%" stop-color="#0a1a22"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#34d399"/>
+    </linearGradient>
+    <clipPath id="frame">
+      <rect x="0" y="0" width="1280" height="320" rx="16"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#frame)">
+    <rect width="1280" height="320" fill="url(#bg)"/>
+
+    <!-- faint grid, evokes an array -->
+    <g stroke="#7dd3fc" stroke-opacity="0.06" stroke-width="1">
+      <path d="M0 40H1280M0 80H1280M0 120H1280M0 160H1280M0 200H1280M0 240H1280M0 280H1280"/>
+      <path d="M40 0V320M80 0V320M120 0V320M160 0V320M200 0V320M240 0V320M280 0V320M320 0V320M360 0V320M400 0V320M440 0V320M480 0V320M520 0V320M560 0V320M600 0V320M640 0V320M680 0V320M720 0V320M760 0V320M800 0V320M840 0V320M880 0V320M920 0V320M960 0V320M1000 0V320M1040 0V320M1080 0V320M1120 0V320M1160 0V320M1200 0V320M1240 0V320"/>
+    </g>
+
+    <!-- glow -->
+    <circle cx="1120" cy="60" r="230" fill="#34d399" fill-opacity="0.07"/>
+    <circle cx="120" cy="300" r="200" fill="#38bdf8" fill-opacity="0.06"/>
+
+    <!-- left accent rule -->
+    <rect x="72" y="96" width="4" height="128" rx="2" fill="url(#accent)"/>
+
+    <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', monospace">
+      <text x="104" y="152" font-size="62" font-weight="700" fill="#e6f1ff" letter-spacing="-1">
+        numba<tspan fill="#38bdf8">-</tspan>utils
+      </text>
+      <text x="106" y="196" font-size="21" fill="#9fb3c8">
+        Battle-tested building blocks for production Numba workloads.
+      </text>
+
+      <g font-size="17" fill="#7f96ad">
+        <text x="106" y="240"><tspan fill="#34d399">✓</tspan> callable inside @njit</text>
+        <text x="352" y="240"><tspan fill="#34d399">✓</tspan> honest benchmarks</text>
+        <text x="574" y="240"><tspan fill="#34d399">✓</tspan> zero deps beyond NumPy</text>
+      </g>
+
+      <!-- module map, same shape as the README diagram -->
+      <g transform="translate(892, 84)" font-size="15" fill="#61788f" xml:space="preserve">
+        <text x="153" y="0" fill="#9fb3c8" text-anchor="middle">Numba</text>
+        <text x="153" y="24" fill="#34d399" text-anchor="middle">▲</text>
+        <text x="153" y="46" text-anchor="middle">│</text>
+        <text x="153" y="68" fill="#cfe3f5" text-anchor="middle">numba-utils</text>
+        <text x="153" y="90" fill="#38bdf8" fill-opacity="0.7" text-anchor="middle">┌────────────────┼────────────────┐</text>
+        <g font-size="14">
+          <text x="0" y="114">Arrays</text>
+          <text x="0" y="136">Algorithms</text>
+          <text x="0" y="158">Stats</text>
+
+          <text x="153" y="114" text-anchor="middle">Collections</text>
+          <text x="153" y="136" text-anchor="middle">Random</text>
+          <text x="153" y="158" text-anchor="middle">Graph</text>
+
+          <text x="306" y="114" text-anchor="end">Parallel</text>
+          <text x="306" y="136" text-anchor="end">Profiling</text>
+          <text x="306" y="158" text-anchor="end">Diagnostics</text>
+        </g>
+      </g>
+    </g>
+
+    <rect x="0" y="316" width="1280" height="4" fill="url(#accent)"/>
+  </g>
+</svg>

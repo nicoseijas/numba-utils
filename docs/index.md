@@ -1,5 +1,7 @@
 # numba-utils
 
+![numba-utils](assets/banner.svg)
+
 **Battle-tested building blocks for production
 [Numba](https://numba.pydata.org/) workloads.**
 
