@@ -1,0 +1,84 @@
+name: release
+
+# Publishes to PyPI when a v* tag is pushed. Uses trusted publishing
+# (OIDC), so there is no API token stored in the repository — PyPI
+# verifies the workflow identity instead. See docs below on the
+# one-time PyPI-side setup this needs.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build and check distributions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Install build tooling
+        run: pip install build twine
+      - name: Build
+        run: python -m build
+      - name: Check metadata renders on PyPI
+        run: twine check dist/*
+      - name: Tag must match the packaged version
+        # The version is dynamic (numba_utils.__version__), so a tag
+        # can disagree with it. Catch that here rather than after an
+        # irreversible upload — PyPI never lets a version be replaced.
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          built=$(ls dist/*.tar.gz | sed -E 's/.*numba_utils-(.+)\.tar\.gz/\1/')
+          if [ "$tag" != "$built" ]; then
+            echo "tag $GITHUB_REF_NAME packages version $built" >&2
+            exit 1
+          fi
+          echo "tag and package agree on $built"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+
+  tests:
+    name: tests (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # ci.yml runs the full OS/version matrix on every push to main.
+        # A tag does not trigger it, so re-run the supported extremes
+        # here: this is the last gate before an upload that cannot be
+        # undone.
+        python-version: ["3.10", "3.13"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: pip install -e .[dev]
+      - name: Tests
+        run: pytest -q
+
+  publish:
+    name: publish to PyPI
+    needs: [build, tests]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/numba-utils/
+    permissions:
+      # Mints the short-lived OIDC token PyPI trades for an upload
+      # token. Required; the job cannot authenticate without it.
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
