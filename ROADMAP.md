@@ -42,7 +42,7 @@ Scope decisions made along the way:
 - **Deprioritized:** `math/` and `geometry/` wish lists — most entries
   fail the "genuinely hard in Numba" filter. Survivors move to Phase 2.
 
-## Phase 2 — Depth (in progress)
+## Phase 2 — Depth ✅ (shipped as 0.2.0)
 
 In value order:
 
@@ -79,7 +79,7 @@ Rules of engagement, unchanged: every addition arrives with tests
 full chain (Python → NumPy → Numba → numba-utils), honest docs about
 when NOT to use it, and NaN/overflow behavior stated or validated.
 
-## Phase 3 — MC primitives (user-driven, in progress)
+## Phase 3 — MC primitives ✅ (user-driven, shipped as 0.3.0)
 
 First real-user feedback: a production Monte Carlo equity engine
 evaluated 0.2.0 for adoption and named five gaps, all squarely inside
@@ -108,7 +108,7 @@ the project's pitch. In implementation order:
    different seeds -> within N sigma of truth, with the false-positive
    rate documented.
 
-## Phase 4 — production-solver contributions (user-driven, in progress)
+## Phase 4 — production-solver contributions ✅ (user-driven, shipped as 0.4.0)
 
 Second contribution wave from the same production user: a bundle of
 primitives extracted from a PLO5 CFR solver, each arriving with its

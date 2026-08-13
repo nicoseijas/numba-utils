@@ -141,7 +141,7 @@ ergonomic**, or **slower but solving a problem unavailable elsewhere**.
 contains losing rows on purpose: they tell you when NOT to use a
 function. Backed in-repo by reproducible
 [benchmarks/](https://github.com/nicoseijas/numba-utils/tree/main/benchmarks),
-300+ reference-validated tests
+450+ reference-validated tests
 ([why there's no coverage badge](https://github.com/nicoseijas/numba-utils/blob/main/docs/testing.md)),
 and CI running all of it. Trade-off records:
 [docs/design/](https://github.com/nicoseijas/numba-utils/tree/main/docs/design).
@@ -179,7 +179,7 @@ by cachau's
 
 ## Status
 
-All three roadmap phases are shipped (see
+All four roadmap phases are shipped (see
 [ROADMAP.md](https://github.com/nicoseijas/numba-utils/blob/main/ROADMAP.md));
 what comes next is user-driven — open an issue.
 
@@ -212,6 +212,19 @@ what comes next is user-driven — open an issue.
       every K ≤ 12), `ContentHashLocator` for stale-cache-proof
       deploys, and profiling that no longer measures its own timer
       (batched sampling, interleaved comparison)
+- [x] 0.4.3–0.4.4 — the remaining audit reports: `random_arrays`
+      generates inside the dtype's range (the extremes became their own
+      deliberate edge case), `parallel_topk` pads its per-thread heaps
+      to cache lines, the `out=` dtype contract pinned across the whole
+      family, and `diagnostics.shadowed()` — is a loaded module the one
+      the import path would resolve today?
+- [x] 0.5.0 — **breaking**: `philox_partial_shuffle` packs four swaps
+      into every Philox block instead of burning one block per swap
+      (index generation 12.18 → 4.08 ns/draw). A `k`-element deal now
+      consumes `ceil(k / 4)` counters instead of `k`, its output stream
+      differs from 0.4.x, and the shuffle moved to its own counter
+      domain. Nothing else in `philox_*` moves. Upgrade notes in
+      [CHANGELOG.md](https://github.com/nicoseijas/numba-utils/blob/main/CHANGELOG.md)
 
 ## Development
 
