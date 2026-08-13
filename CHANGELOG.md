@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **diagnostics** — `shadowed()` reports modules loaded from a file the
+  current import path would no longer resolve: a frozen snapshot copied
+  into the tree, a stale build directory, a sibling checkout ahead on
+  `sys.path`. Once a module is in `sys.modules` nothing re-checks it, so
+  the symptom is not an import error but wrong results from code that
+  reads correctly. Call it with no argument to scan loaded first-party
+  modules (stdlib, `site-packages`/`dist-packages`, `__main__` and
+  modules without a `__file__` are skipped), or pass a module or an
+  imported module name to check one. Read-only — nothing is imported,
+  reloaded or removed, and `sys.path` is never modified. A module that
+  no longer resolves at all is deliberately not reported, so editable
+  installs and popped path entries do not cry wolf. Same stale-artifact
+  failure class as `cache_locator`, one layer up at module resolution.
+  (GitHub issue #16)
+
 ## [0.4.3] - 2026-08-10
 
 ### Changed

@@ -56,6 +56,12 @@ reproducible by construction.
 - `show(fn)` — signatures, cache state, flags, compile times
 - `check(fn)` — known-issue warnings with concrete recommendations
 - `inspect(fn)` — the underlying immutable `FunctionReport`
+- `shadowed()` — modules loaded from a file the import path no longer
+  resolves (a frozen snapshot, a stale build directory, a sibling
+  checkout ahead on `sys.path`). Read-only, no dispatcher needed; scans
+  first-party modules, or one module you name. The stale-artifact
+  failure that `cache_locator` covers for compiled binaries, one layer
+  up at module resolution
 
 ## Data structures
 
