@@ -59,6 +59,11 @@ def shadowed(
     path entry, or an editable install whose finder sits on
     ``sys.meta_path`` where ``PathFinder`` cannot see it, would otherwise
     make the check cry wolf on healthy trees.
+
+    A module imported from a sourceless ``.pyc`` is compared the same
+    way as any other: quiet while that ``.pyc`` is what the path finds,
+    reported once a ``.py`` appears beside it — which is a real
+    divergence, since the source is what an import would pick up now.
     """
     if module is None:
         candidates = [
@@ -158,8 +163,10 @@ def _is_scannable(module: ModuleType) -> bool:
     file = getattr(module, "__file__", None)
     if not file:
         return False
-    normalized = _canonical(file).replace("\\", "/")
-    return not any(marker in normalized for marker in _VENDOR_MARKERS)
+    # Match path COMPONENTS, not a substring: a checkout living under
+    # ".../my-site-packages-fork/" is first-party and must still scan.
+    parts = _canonical(file).replace("\\", "/").split("/")
+    return not any(marker in parts for marker in _VENDOR_MARKERS)
 
 
 def _same_file(loaded: str, resolved: str) -> bool:

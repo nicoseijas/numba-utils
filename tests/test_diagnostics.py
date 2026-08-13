@@ -1,5 +1,6 @@
 import importlib
 import os
+import py_compile
 import sys
 
 import numpy as np
@@ -238,3 +239,61 @@ class TestShadowed:
         finding = diagnostics.shadowed(module, verbose=False)[0]
         with pytest.raises(AttributeError):
             finding.name = "other"
+
+    def test_a_vendor_lookalike_directory_is_still_scanned(self, two_copies):
+        # The filter matches path COMPONENTS: a checkout under
+        # ".../my-site-packages-fork/" is first-party, not vendored.
+        first, second = two_copies
+        lookalike = first.parent / "my-site-packages-fork"
+        lookalike.mkdir()
+        (lookalike / f"{_PROBE}.py").write_text("VALUE = 'lookalike'\n")
+        sys.path[0] = str(lookalike)
+        importlib.invalidate_caches()
+        importlib.import_module(_PROBE)
+        _repoint(second)
+
+        assert _PROBE in [f.name for f in diagnostics.shadowed(verbose=False)]
+
+
+class TestShadowedSourcelessPyc:
+    """A module imported from a `.pyc` with no source beside it."""
+
+    @pytest.fixture
+    def sourceless(self, tmp_path):
+        name = "shadow_pyc_probe"
+        source = tmp_path / f"{name}.py"
+        source.write_text("VALUE = 'compiled'\n")
+        py_compile.compile(
+            str(source), cfile=str(tmp_path / f"{name}.pyc"), doraise=True
+        )
+        source.unlink()
+        original_path = list(sys.path)
+        sys.path.insert(0, str(tmp_path))
+        importlib.invalidate_caches()
+        try:
+            yield name, source
+        finally:
+            sys.path[:] = original_path
+            sys.modules.pop(name, None)
+            importlib.invalidate_caches()
+
+    def test_quiet_while_the_pyc_is_what_the_path_finds(self, sourceless):
+        name, _ = sourceless
+        module = importlib.import_module(name)
+
+        assert module.__file__.endswith(".pyc")
+        assert diagnostics.shadowed(module, verbose=False) == []
+
+    def test_reported_once_source_appears_beside_it(self, sourceless):
+        # Not a false positive: the finder prefers .py, so an import
+        # right now would pick up source the loaded module never ran.
+        name, source = sourceless
+        module = importlib.import_module(name)
+        source.write_text("VALUE = 'source'\n")
+        importlib.invalidate_caches()
+
+        findings = diagnostics.shadowed(module, verbose=False)
+
+        assert [f.name for f in findings] == [name]
+        assert findings[0].loaded_origin.endswith(".pyc")
+        assert findings[0].resolved_origin.endswith(".py")
