@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Next release is **0.5.0**: `philox_partial_shuffle` changes its output
-stream and its counter accounting, so upgrading is not a drop-in for
-anyone who has seeded experiments with it.
+## [0.5.0] - 2026-08-13
+
+`philox_partial_shuffle` changes its output stream and its counter
+accounting, so upgrading is not a drop-in for anyone who has seeded
+experiments with it. Everything else is unchanged.
 
 ### Breaking
 
