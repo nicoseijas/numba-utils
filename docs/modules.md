@@ -123,7 +123,10 @@ the Walker alias method as `alias_setup` / `alias_draw` /
 `philox4x64` — pure functions of `(key, counter)`, reproducible
 regardless of threads, processes or call order — and the composed
 variants `philox_partial_shuffle` / `philox_sample_without_replacement`
-that drive the Fisher–Yates primitives from a Philox stream.
+that drive the Fisher–Yates primitives from a Philox stream, four
+swaps per block and in their own counter domain (so they consume
+`ceil(k / 4)` counters and never collide with the three functions
+above).
 
 ## Developer tools
 

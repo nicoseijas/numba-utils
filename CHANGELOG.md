@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Next release is **0.5.0**: `philox_partial_shuffle` changes its output
+stream and its counter accounting, so upgrading is not a drop-in for
+anyone who has seeded experiments with it.
+
+### Breaking
+
+- **random** — `philox_partial_shuffle` (and therefore
+  `philox_sample_without_replacement`) now consumes all four words of
+  every Philox block instead of burning one block per swap. Two
+  consequences, both requiring changes on the caller's side:
+  - **Counter accounting.** A `k`-element deal consumes
+    `ceil(k / 4)` counters, not `k`. The documented partition pattern
+    changes from `counter = iteration * k` to
+    `counter = iteration * ceil(k / 4)`. The old spacing still yields
+    disjoint ranges (it is 4x wider than needed), so existing code
+    stays CORRECT, just wasteful — but any code that reasoned about
+    "the next free counter" now over-reserves.
+  - **Output stream.** The permutation for a given
+    `(key, counter, k)` differs from 0.4.x. Results seeded with these
+    two functions are not reproducible across the upgrade; nothing
+    else in `philox_*` moves.
+  Measured on the maintainer's machine (52-card deck, k=10,
+  200k iterations): index generation 12.18 -> 4.08 ns/draw (3.0x),
+  end-to-end deal loop 61.5 -> 48.9 ns/iter, which puts the
+  reproducible path below the `np.random`-driven `partial_shuffle`
+  (52.4 ns/iter) instead of 18% above it. (GitHub issue #9)
+- **random** — the shuffle helpers now draw from their own counter
+  domain (a nonzero fourth counter word), so their counters no longer
+  collide with `philox_uniform` / `philox_randint` / `philox_uniforms`
+  at equal values — before this, the first swap WAS `philox_randint`
+  at the same counter. Those three keep the global counter space
+  documented in 0.3.3 and stay bit-identical to `np.random.Philox`;
+  only the shuffle stream moved, and it moved once, together with the
+  block-packing break rather than after it. (GitHub issue #9)
+
 ## [0.4.4] - 2026-08-13
 
 ### Added

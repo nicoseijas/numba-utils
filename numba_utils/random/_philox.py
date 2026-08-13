@@ -21,13 +21,18 @@ Usage notes that apply to every function here:
 - ``philox_uniform`` and ``philox_randint`` at the same
   ``(key, counter)`` consume DIFFERENT words of the block (x0 and x1),
   so that specific pair is independent. But the counter space is
-  GLOBAL across all ``philox_*`` functions: ``philox_uniforms``
+  SHARED by the three number-drawing functions: ``philox_uniforms``
   consumes ALL FOUR words of its blocks, so it overlaps
   ``philox_uniform``/``philox_randint`` at the same counters —
   measured correlation ~1.0, and the artifact is invisible to
   marginal uniformity tests. Partition the counter space ONCE per run
   across everything that draws from a key, or give each purpose its
   own key.
+- The shuffle helpers (``philox_partial_shuffle`` and
+  ``philox_sample_without_replacement``) are the exception: since
+  0.5.0 they draw from a separate counter domain, so their counters
+  never collide with the three above and only have to be partitioned
+  against each other.
 - Counters wrap modulo 2**64 silently: a stream that starts near the
   top wraps onto counter 0. Keep total consumption per key below
   2**64 (any realistic run) and don't start streams near the wrap
@@ -48,6 +53,11 @@ _MASK32 = np.uint64(0xFFFFFFFF)
 _SHIFT32 = np.uint64(32)
 _SHIFT11 = np.uint64(11)
 _INV53 = 1.0 / 9007199254740992.0  # 2**-53
+# Domain separation for the shuffle helpers. Every function that
+# validates bit-exact against np.random.Philox leaves counter words
+# c1..c3 at zero, so a nonzero c3 puts the shuffle stream where none of
+# them can reach it, at any counter.
+_SHUFFLE_DOMAIN = np.uint64(0x5348_5546_464C_4531)
 
 
 @cached_njit
@@ -134,6 +144,26 @@ def philox_randint(key, counter, n):
         np.uint64(0), np.uint64(0), np.uint64(0),
     )
     return np.int64(_mulhi64(x1, np.uint64(n)))
+
+
+@cached_njit
+def _shuffle_words(key, counter):
+    """Four uint64 words of the shuffle domain of stream ``key`` at
+    block index ``counter`` — the raw material for four bounded swap
+    indices, one Philox block instead of four.
+    """
+    return philox4x64(
+        np.uint64(key), np.uint64(0), np.uint64(counter),
+        np.uint64(0), np.uint64(0), _SHUFFLE_DOMAIN,
+    )
+
+
+@cached_njit
+def _bounded(word, n):
+    """``word`` mapped to ``[0, n)`` by multiply-shift, the bounding
+    :func:`philox_randint` uses (bias below ``n / 2**64``).
+    """
+    return np.int64(_mulhi64(np.uint64(word), np.uint64(n)))
 
 
 @cached_njit

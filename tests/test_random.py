@@ -341,11 +341,12 @@ class TestPhiloxSampling:
         assert sorted(a.tolist()) == list(range(52))
 
     def test_disjoint_counters_differ(self):
+        # k=5 consumes ceil(5/4)=2 counters, so 2 is the next free one
         a = philox_sample_without_replacement(
             np.arange(52, dtype=np.int64), 5, 7, 0
         )
         b = philox_sample_without_replacement(
-            np.arange(52, dtype=np.int64), 5, 7, 5
+            np.arange(52, dtype=np.int64), 5, 7, 2
         )
         assert a.tolist() != b.tolist()
 
@@ -375,13 +376,83 @@ class TestPhiloxSampling:
         @njit
         def deal(deck, k, key, it):
             scratch = deck.copy()
-            philox_partial_shuffle(scratch, k, key, it * k)
+            philox_partial_shuffle(scratch, k, key, it * ((k + 3) // 4))
             return scratch[:k]
 
         deck = np.arange(52, dtype=np.int64)
         first = deal(deck, 5, 7, 0)
         again = deal(deck, 5, 7, 0)
         np.testing.assert_array_equal(first, again)
+
+
+class TestPhiloxShuffleBlockPacking:
+    def test_four_swaps_share_one_block(self):
+        # The layout is fixed: swap i uses word i%4 of block
+        # counter + i//4. A k=4 deal and the first four swaps of a k=8
+        # deal at the same counter must therefore agree.
+        short = np.arange(52, dtype=np.int64)
+        long = np.arange(52, dtype=np.int64)
+        philox_partial_shuffle(short, 4, 7, 100)
+        philox_partial_shuffle(long, 8, 7, 100)
+        np.testing.assert_array_equal(short[:4], long[:4])
+
+    def test_counter_advances_every_fourth_swap(self):
+        # The 5th swap opens a new block: a k=5 deal starting at
+        # counter 0 must reuse the block a k=1 deal at counter 1 uses.
+        five = np.arange(52, dtype=np.int64)
+        philox_partial_shuffle(five, 5, 7, 0)
+        # Replay the first four swaps to reach the same array state,
+        # then draw the fifth from counter 1 alone.
+        replay = np.arange(52, dtype=np.int64)
+        philox_partial_shuffle(replay, 4, 7, 0)
+        philox_partial_shuffle(replay[4:], 1, 7, 1)
+        np.testing.assert_array_equal(five, replay)
+
+    def test_a_deal_of_ten_spends_exactly_three_counters(self):
+        # The point of the change: 10 cards used to burn 10 blocks.
+        # Replaying the deal as 4 + 4 + 2 swaps over counters 0, 1, 2
+        # must reproduce it exactly — which pins both the block size
+        # and where the counter advances.
+        whole = np.arange(52, dtype=np.int64)
+        philox_partial_shuffle(whole, 10, 7, 0)
+
+        replay = np.arange(52, dtype=np.int64)
+        philox_partial_shuffle(replay, 4, 7, 0)
+        philox_partial_shuffle(replay[4:], 4, 7, 1)
+        philox_partial_shuffle(replay[8:], 2, 7, 2)
+
+        np.testing.assert_array_equal(whole, replay)
+
+    def test_uniformity_across_the_block_boundary(self):
+        # The 5th draw is the first word of the second block: a
+        # mis-advanced counter or a reused word shows up here.
+        counts = np.zeros(6, np.int64)
+        for it in range(12_000):
+            arr = np.arange(6, dtype=np.int64)
+            philox_partial_shuffle(arr, 5, 31, it * 2)
+            counts[arr[4]] += 1
+        # expected 2000 per value, sd ~41; +/-250 is ~6 sigma
+        assert counts.min() > 1750
+        assert counts.max() < 2250
+
+
+class TestPhiloxShuffleDomain:
+    def test_shuffle_does_not_reuse_the_number_drawing_streams(self):
+        # Before 0.5.0 the first swap WAS philox_randint at the same
+        # counter (agreement 500/500). The shuffle now has its own
+        # counter domain, so agreement must be chance-level (~0.5
+        # expected hits over 500 counters with n=1000).
+        n = 1000
+        randint_hits = 0
+        uniform_hits = 0
+        for c in range(500):
+            arr = np.arange(n, dtype=np.int64)
+            philox_partial_shuffle(arr, 1, 5, c)
+            first = int(arr[0])
+            randint_hits += first == philox_randint(5, c, n)
+            uniform_hits += first == int(philox_uniform(5, c) * n)
+        assert randint_hits < 10
+        assert uniform_hits < 10
 
 
 class TestPhiloxWordIndependence:
@@ -439,7 +510,7 @@ class TestPhiloxUniformityOfPrefixes:
         counts = {}
         for it in range(20_000):
             arr = np.arange(5, dtype=np.int64)
-            philox_partial_shuffle(arr, 2, 31, it * 2)
+            philox_partial_shuffle(arr, 2, 31, it)
             pair = (int(arr[0]), int(arr[1]))
             counts[pair] = counts.get(pair, 0) + 1
         assert len(counts) == 20

@@ -6,7 +6,7 @@ import numpy as np
 
 from numba_utils.arrays import upper_bound
 from numba_utils.decorators import cached_njit
-from numba_utils.random._philox import philox_randint
+from numba_utils.random._philox import _bounded, _shuffle_words
 
 
 @cached_njit
@@ -91,10 +91,15 @@ def philox_partial_shuffle(arr, k, key, counter):
     Fisher–Yates, but driven by the stateless Philox stream ``key`` —
     reproducible regardless of threads, processes or call order.
 
-    Consumes counters ``counter .. counter + k - 1``: give each work
-    unit a disjoint counter range (e.g.
-    ``counter = iteration * k_per_iteration``) and the whole run is
-    reproducible by construction. Returns ``arr``.
+    Each Philox block drives FOUR swaps, so a deal of ``k`` cards
+    consumes ``ceil(k / 4)`` counters, NOT ``k``: give each work unit a
+    disjoint counter range (e.g.
+    ``counter = iteration * ceil(k_per_iteration / 4)``) and the whole
+    run is reproducible by construction. Returns ``arr``.
+
+    The stream lives in its own counter domain, so these counters never
+    collide with ``philox_uniform``/``philox_randint``/
+    ``philox_uniforms`` — only with other shuffle calls on the same key.
 
     ``arr`` must be 1-D (see :func:`partial_shuffle`: row swaps alias).
 
@@ -108,9 +113,14 @@ def philox_partial_shuffle(arr, k, key, counter):
     if k < 0 or k > n:
         raise ValueError("philox_partial_shuffle: k must be in [0, len(arr)]")
     c = np.uint64(counter)
-    for i in range(k):
-        j = i + philox_randint(key, c, n - i)
-        arr[i], arr[j] = arr[j], arr[i]
+    i = 0
+    while i < k:
+        for word in _shuffle_words(key, c):
+            if i >= k:
+                break
+            j = i + _bounded(word, n - i)
+            arr[i], arr[j] = arr[j], arr[i]
+            i += 1
         c += np.uint64(1)
     return arr
 
@@ -119,8 +129,10 @@ def philox_partial_shuffle(arr, k, key, counter):
 def philox_sample_without_replacement(arr, k, key, counter):
     """Counter-based :func:`sample_without_replacement`: ``k`` elements
     without replacement from the stateless Philox stream ``key``.
-    Input untouched; consumes counters ``counter .. counter + k - 1``.
-    ``k = 0`` returns an empty array and consumes no counters.
+    Input untouched; consumes ``ceil(k / 4)`` counters starting at
+    ``counter``, in the shuffle domain (see
+    :func:`philox_partial_shuffle`). ``k = 0`` returns an empty array
+    and consumes no counters.
 
     Copies the pool once plus the ``k`` winners (see
     :func:`sample_without_replacement`). In a hot loop, skip the
